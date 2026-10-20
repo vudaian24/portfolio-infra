@@ -1,0 +1,2 @@
+# Copy to account.auto.tfvars (not committed), or set TF_VAR_aws_account_id instead
+aws_account_id = "<AWS_ACCOUNT_ID>"

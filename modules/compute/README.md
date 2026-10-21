@@ -1,11 +1,13 @@
 # compute
 
-Planned: the EC2 instance that runs the site.
+Planned: the EKS cluster and its node.
 
-- t4g.small, Amazon Linux 2023 arm64. The AMI ID is pinned by the caller; bumping it replaces the instance.
-- 20 GB gp3 root volume, encrypted. IMDSv2 required with hop limit 1, so containers cannot reach instance credentials.
-- Elastic IP, so the instance can be replaced without a DNS change.
-- Instance profile: `AmazonSSMManagedInstanceCore`, ECR pull for the app repository, `ssm:GetParameter` on `/portfolio/prod/*`, CloudWatch Logs write.
-- User data installs Docker and the Compose plugin and writes `/opt/portfolio/compose.yaml`, `Caddyfile` and `deploy.sh`. `user_data_replace_on_change = true`.
+- EKS cluster `portfolio-prod`, Kubernetes version pinned by the caller (1.36). API endpoint public, limited to the admin IP allow-list, plus private access.
+- Access entries for the admin user and the CI roles. No implicit cluster-creator admin.
+- Managed node group `portfolio-prod-default`: 1× t4g.medium, Amazon Linux 2023 arm64, desired = min = max = 1, in a public subnet. Launch template: 20 GB gp3 encrypted, IMDSv2 required with hop limit 1. AMI release version pinned by the caller.
+- EKS add-ons: `vpc-cni` (prefix delegation, max pods 30), `coredns`, `kube-proxy`, `eks-pod-identity-agent`, `metrics-server`.
+- Node role (worker, ECR pull, CNI) and Pod Identity associations for the AWS Load Balancer Controller and External Secrets Operator (`ssm:GetParameter` on `/portfolio/prod/*`).
+
+In-cluster resources are deployed by Argo CD from `k8s/`, not by this module.
 
 Stub today: only `terraform.tf` has content. The target design is in the parent workspace `docs/`.

@@ -4,19 +4,20 @@ Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a per
 
 **Status:** `bootstrap/` is implemented. Environments and modules are scaffolding. The AWS target below is planned.
 
-The site is served by Vercel today. The move to AWS is planned for a run of 2 to 3 months. Its design records live in the private workspace repo, not in this repository.
+The site is served by Vercel today. The move to AWS is planned for a run of about 44 days, paid by the account's Free plan credits. Its design records live in the private workspace repo, not in this repository.
 
 ## Target architecture (planned)
 
 - **Cloudflare** keeps DNS and proxies the site: TLS for visitors, caching, WAF and one rate limiting rule. The Cloudflare provider manages the records, all proxied.
-- **VPC** with one public subnet in one AZ and an internet gateway. No NAT gateway and no load balancer.
-- **EC2** (t4g.small, Amazon Linux 2023 arm64) with an Elastic IP runs Docker Compose: Caddy, with a Cloudflare Origin CA certificate, in front of the Next.js container. The security group admits TCP 443 from Cloudflare IP ranges only. SSH is closed; admin access uses SSM Session Manager.
-- **SSM Parameter Store** (SecureString) holds the Telegram bot secrets and the Origin CA certificate and key. Terraform creates placeholder values; real values are set out of band with the AWS CLI.
-- **ECR** stores the app image with immutable tags (git SHA). Deploys run the deploy script on the instance through SSM Run Command.
-- **CloudWatch** keeps container logs and alarms on EC2 status checks, with an SNS email topic. **AWS Budgets** warns on spend.
-- **GitHub OIDC** roles, the ECR repository and AWS Budgets live in `envs/prod`. CI assumes the roles. Humans use short-term `aws login` sessions.
+- **VPC** with two public subnets in two AZs and an internet gateway. No NAT gateway.
+- **Amazon EKS** (Kubernetes 1.36) with one managed node, t4g.medium, Amazon Linux 2023 arm64, 20 GB gp3. The API endpoint accepts only the admin IP allow-list.
+- **ALB**, created in the cluster by the AWS Load Balancer Controller, with an ACM certificate. Its security group admits TCP 443 from Cloudflare IP ranges only.
+- In the cluster, deployed by **Argo CD** from `k8s/` (planned): the Load Balancer Controller, External Secrets Operator, kube-prometheus-stack and the app.
+- **SSM Parameter Store** (SecureString) holds the Telegram secrets. Terraform creates placeholder values; real values are set out of band with the AWS CLI.
+- **ECR** stores the app image with immutable tags (git SHA).
+- **GitHub OIDC** roles, the ECR repository, the ACM certificate and AWS Budgets live in `envs/prod`. CI assumes the roles. Humans use short-term `aws login` sessions.
 
-No CloudFront, Lambda or S3 bucket for static assets.
+Terraform uses only the AWS and Cloudflare providers. It never calls the Kubernetes API.
 
 ## Layout
 
@@ -28,10 +29,11 @@ envs/
   dev/                Scaffolding. To be removed. Providers and backend are set; module calls are commented out.
   prod/               Target single environment. Stub: terraform.tf, backend.tf and the lock file today.
 modules/
-  network/            Planned: VPC, public subnet, internet gateway, security group. Stub.
-  compute/            Planned: EC2 instance, Elastic IP, instance profile, user data. Stub.
+  network/            Planned: VPC, public subnets, internet gateway, ALB security group. Stub.
+  compute/            Planned: EKS cluster, node group, EKS add-ons, Pod Identity. Stub.
   dns/                Planned: Cloudflare records and rate limiting rule. Stub.
   secrets/            Planned: SSM SecureString parameters. Stub.
+k8s/                  Planned: Argo CD bootstrap, platform Applications, app ApplicationSet.
 .github/workflows/
   terraform-ci.yml    Format, validate and TFLint on push to main and on pull requests.
 ```
@@ -42,19 +44,19 @@ Each environment directory calls the local modules and has its own backend, vari
 
 | Module | Purpose | Status |
 | --- | --- | --- |
-| `network` | VPC, one public subnet, internet gateway, route table, security group (443 from Cloudflare only) | Planned, stub |
-| `compute` | EC2 instance, Elastic IP, instance profile, user data (Compose file, Caddyfile, deploy script) | Planned, stub |
-| `dns` | Cloudflare records (proxied) and the rate limiting rule for the contact endpoint | Planned, stub |
+| `network` | VPC, two public subnets with the ELB subnet tag, internet gateway, route table, ALB security group (443 from Cloudflare only) | Planned, stub |
+| `compute` | EKS cluster, access entries, managed node group and launch template, EKS add-ons, node role, Pod Identity associations | Planned, stub |
+| `dns` | Cloudflare records (proxied CNAMEs to the ALB, ACM validation) and the rate limiting rule | Planned, stub |
 | `secrets` | SSM SecureString parameters with placeholder values | Planned, stub |
-| `monitoring` | CloudWatch log group, EC2 status alarms with recovery, SNS topic | Planned |
 
-The GitHub OIDC roles, the ECR repository and AWS Budgets are planned directly in `envs/prod`, not in a module.
+The GitHub OIDC roles, the ECR repository, the ACM certificate and AWS Budgets are planned directly in `envs/prod`, not in a module.
 
 ## Requirements
 
 - Terraform (version in `.terraform-version`, at least 1.10 for S3 native state locking)
 - AWS CLI v2, authenticated with `aws login`. Do not create or use long-lived access keys.
 - TFLint (optional, for local linting)
+- `kubectl` and `helm` for the one-time Argo CD bootstrap
 
 ## Usage
 

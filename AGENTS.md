@@ -14,7 +14,7 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 - `envs/dev/`: providers, backend partial config, locals, variables and outputs are present. Module calls in `main.tf` are commented out. Scheduled for removal (single `prod` environment).
 - `envs/prod/`: stub. `terraform.tf`, `backend.tf` (partial S3 backend, key `prod/terraform.tfstate`), `backend.hcl.example` and the lock file have content. `providers.tf`, `variables.tf`, `locals.tf`, `main.tf`, `outputs.tf` and `terraform.tfvars` are empty.
 - `modules/network`, `compute`, `dns`, `secrets`: stubs. Only `terraform.tf` has content. All four are planned for the EKS target: `network` (VPC, two public subnets, internet gateway, ALB security group), `compute` (EKS cluster, access entries, node group, EKS add-ons, Pod Identity), `dns` (Cloudflare records and rate limiting rule), `secrets` (SSM parameters). Each module `README.md` states its scope.
-- `k8s/`: planned. `bootstrap/` (Argo CD cluster secret and root Application, applied by hand once), `appsets/` (one ApplicationSet per add-on in `platform/`, the app in `apps/`), `charts/` (one wrapper chart per add-on, upstream chart pinned in `Chart.lock`). Layout and rules: parent `../docs/adr/0006-kubernetes-gitops-layout.md`. Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources.
+- No Kubernetes manifests here. Argo CD config and the app chart live in the `portfolio-gitops` repository (parent `../docs/adr/0007-separate-gitops-repository.md`). Do not add a `k8s/` directory. Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources; `envs/prod` will expose the outputs `ecr_registry_host` and `vpc_id` for the Argo CD bootstrap (planned).
 - The target design is in the parent `docs/`. Follow the parent docs when they conflict.
 
 ## Commands
@@ -59,8 +59,8 @@ Runs on push to `main` and on every PR. Permissions: `contents: read`.
 - Do not remove `prevent_destroy` from the bootstrap state bucket, and do not turn off `allowed_account_ids`.
 - Do not put secrets in `.tf` or `.tfvars` files. Store secret values in SSM Parameter Store (target design) and reference them by name.
 - This repo is also checked out as a submodule of the `portfolio` workspace repo. Push changes here first; the workspace records the new commit afterwards.
-- Do not push to `main` directly. Branch from `main`, push the branch, and open a PR.
+- Commit on `main` and push it directly. Do not open pull requests.
 
 ## Parent docs
 
-Target AWS architecture (Cloudflare proxy, ALB, one-node Amazon EKS cluster, Argo CD GitOps from `k8s/`, `envs/prod`, OIDC CI/CD) and runbooks are in `../docs/` (architecture, `adr/`, `runbooks/`). Read them before adding modules or changing envs.
+Target AWS architecture (Cloudflare proxy, ALB, one-node Amazon EKS cluster, Argo CD GitOps from `portfolio-gitops`, `envs/prod`, OIDC CI/CD) and runbooks are in `../docs/` (architecture, `adr/`, `runbooks/`). Read them before adding modules or changing envs.

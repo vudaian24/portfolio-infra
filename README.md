@@ -12,7 +12,7 @@ The site is served by Vercel today. The move to AWS is planned for a run of abou
 - **VPC** with two public subnets in two AZs and an internet gateway. No NAT gateway.
 - **Amazon EKS** (Kubernetes 1.36) with one managed node, t4g.medium, Amazon Linux 2023 arm64, 20 GB gp3. The API endpoint accepts only the admin IP allow-list.
 - **ALB**, created in the cluster by the AWS Load Balancer Controller, with an ACM certificate. Its security group admits TCP 443 from Cloudflare IP ranges only.
-- In the cluster, deployed by **Argo CD** from `k8s/` (planned): the Load Balancer Controller, External Secrets Operator, kube-prometheus-stack and the app.
+- In the cluster, deployed by **Argo CD** from [portfolio-gitops](https://github.com/vudaian24/portfolio-gitops): the Load Balancer Controller, External Secrets Operator, kube-prometheus-stack and the app. This repository holds no Kubernetes manifests.
 - **SSM Parameter Store** (SecureString) holds the Telegram secrets. Terraform creates placeholder values; real values are set out of band with the AWS CLI.
 - **ECR** stores the app image with immutable tags (git SHA).
 - **GitHub OIDC** roles, the ECR repository, the ACM certificate and AWS Budgets live in `envs/prod`. CI assumes the roles. Humans use short-term `aws login` sessions.
@@ -33,10 +33,6 @@ modules/
   compute/            Planned: EKS cluster, node group, EKS add-ons, Pod Identity. Stub.
   dns/                Planned: Cloudflare records and rate limiting rule. Stub.
   secrets/            Planned: SSM SecureString parameters. Stub.
-k8s/
-  bootstrap/          Planned: Argo CD cluster secret and root Application, applied by hand once.
-  appsets/            Planned: one ApplicationSet per add-on (platform/) and one for the app (apps/).
-  charts/             Planned: one wrapper chart per add-on: upstream chart pinned in Chart.lock, values, extra resources.
 .github/workflows/
   terraform-ci.yml    Format, validate and TFLint on push to main and on pull requests.
 ```
@@ -59,7 +55,7 @@ The GitHub OIDC roles, the ECR repository, the ACM certificate and AWS Budgets a
 - Terraform (version in `.terraform-version`, at least 1.10 for S3 native state locking)
 - AWS CLI v2, authenticated with `aws login`. Do not create or use long-lived access keys.
 - TFLint (optional, for local linting)
-- `kubectl` and `helm` for the one-time Argo CD bootstrap
+- The Argo CD bootstrap will read the planned outputs `ecr_registry_host` and `vpc_id` from `envs/prod`; its charts and manifests are in `portfolio-gitops`
 
 ## Usage
 

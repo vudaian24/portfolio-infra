@@ -1,6 +1,6 @@
-# my-portfolio-infras
+# portfolio-infra
 
-Terraform infrastructure for [my-portfolio](https://github.com/vudaian24/my-portfolio) on AWS (`ap-southeast-1`).
+Terraform infrastructure for [portfolio-web](https://github.com/vudaian24/portfolio-web) on AWS (`ap-southeast-1`).
 
 ## Layout
 

@@ -7,7 +7,7 @@ variable "noncurrent_version_retention_days" {
 variable "project" {
   description = "Project name, used as the resource name prefix."
   type        = string
-  default     = "my-portfolio"
+  default     = "portfolio"
 }
 
 variable "region" {

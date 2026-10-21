@@ -1,5 +1,5 @@
 locals {
-  # Resource name prefix, e.g. my-portfolio-dev-vpc
+  # Resource name prefix, e.g. portfolio-dev-vpc
   name_prefix = "${var.project}-${var.environment}"
 
   common_tags = {

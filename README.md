@@ -33,7 +33,10 @@ modules/
   compute/            Planned: EKS cluster, node group, EKS add-ons, Pod Identity. Stub.
   dns/                Planned: Cloudflare records and rate limiting rule. Stub.
   secrets/            Planned: SSM SecureString parameters. Stub.
-k8s/                  Planned: Argo CD bootstrap, platform Applications, app ApplicationSet.
+k8s/
+  bootstrap/          Planned: Argo CD cluster secret and root Application, applied by hand once.
+  appsets/            Planned: one ApplicationSet per add-on (platform/) and one for the app (apps/).
+  charts/             Planned: one wrapper chart per add-on: upstream chart pinned in Chart.lock, values, extra resources.
 .github/workflows/
   terraform-ci.yml    Format, validate and TFLint on push to main and on pull requests.
 ```

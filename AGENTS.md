@@ -13,7 +13,7 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 - `bootstrap/`: implemented. Creates the state bucket `portfolio-tfstate-<account_id>` with versioning, SSE-S3, public access blocked, TLS-only policy and `prevent_destroy`. Uses local state (`bootstrap/terraform.tfstate`, git-ignored). Run once per account.
 - `envs/dev/`: providers, backend partial config, locals, variables and outputs are present. Module calls in `main.tf` are commented out.
 - `envs/prod/`: stub. Only `terraform.tf` and the lock file have content. `backend.tf`, `providers.tf`, `variables.tf`, `main.tf` and `terraform.tfvars` are empty.
-- `modules/network`, `compute`, `dns`, `secrets`: stubs. Only `terraform.tf` has content. `README.md` in each module describes an older EC2/Route 53/SSM design. The target design is in the parent `docs/`. Follow the parent docs when they conflict.
+- `modules/network`, `compute`, `dns`, `secrets`: stubs. Only `terraform.tf` has content. `network` and `compute` are deprecated and scheduled for removal (the target has no VPC or EC2). `dns` and `secrets` are planned. Each module `README.md` states this. The target design is in the parent `docs/`. Follow the parent docs when they conflict.
 
 ## Commands
 

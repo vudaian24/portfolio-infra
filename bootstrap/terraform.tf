@@ -8,7 +8,4 @@ terraform {
       version = "~> 6.0"
     }
   }
-
-  # No backend: bootstrap state stays local (terraform.tfstate),
-  # because the state bucket does not exist yet on the first run.
 }

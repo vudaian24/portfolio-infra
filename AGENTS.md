@@ -14,7 +14,7 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 - `envs/dev/`: providers, backend partial config, locals, variables and outputs are present. Module calls in `main.tf` are commented out. Scheduled for removal (single `prod` environment).
 - `envs/prod/`: stub. `terraform.tf`, `backend.tf` (partial S3 backend, key `prod/terraform.tfstate`), `backend.hcl.example` and the lock file have content. `providers.tf`, `variables.tf`, `locals.tf`, `main.tf`, `outputs.tf` and `terraform.tfvars` are empty.
 - `modules/network`, `compute`, `dns`, `secrets`: stubs. Only `terraform.tf` has content. All four are planned for the EKS target: `network` (VPC, two public subnets, internet gateway, ALB security group), `compute` (EKS cluster, access entries, node group, EKS add-ons, Pod Identity), `dns` (Cloudflare records and rate limiting rule), `secrets` (SSM parameters). Each module `README.md` states its scope.
-- `k8s/`: planned. Argo CD bootstrap, platform Applications and the app ApplicationSet. Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources.
+- `k8s/`: planned. `bootstrap/` (Argo CD cluster secret and root Application, applied by hand once), `appsets/` (one ApplicationSet per add-on in `platform/`, the app in `apps/`), `charts/` (one wrapper chart per add-on, upstream chart pinned in `Chart.lock`). Layout and rules: parent `../docs/adr/0006-kubernetes-gitops-layout.md`. Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources.
 - The target design is in the parent `docs/`. Follow the parent docs when they conflict.
 
 ## Commands

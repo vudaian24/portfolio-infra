@@ -10,10 +10,10 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 
 ## Current state
 
-- `bootstrap/`: implemented. Creates the state bucket `portfolio-tfstate-<account_id>` with versioning, SSE-S3, public access blocked, TLS-only policy and `prevent_destroy`. Uses local state (`bootstrap/terraform.tfstate`, git-ignored). Run once per account.
-- `envs/dev/`: providers, backend partial config, locals, variables and outputs are present. Module calls in `main.tf` are commented out.
-- `envs/prod/`: stub. Only `terraform.tf` and the lock file have content. `backend.tf`, `providers.tf`, `variables.tf`, `main.tf` and `terraform.tfvars` are empty.
-- `modules/network`, `compute`, `dns`, `secrets`: stubs. Only `terraform.tf` has content. `network` and `compute` are deprecated and scheduled for removal (the target has no VPC or EC2). `dns` and `secrets` are planned. Each module `README.md` states this. The target design is in the parent `docs/`. Follow the parent docs when they conflict.
+- `bootstrap/`: implemented. Creates the state bucket `portfolio-tfstate-<account_id>` with versioning, SSE-S3, public access blocked, TLS-only policy and `prevent_destroy`. Its own state lives in that bucket (key `bootstrap/terraform.tfstate`, partial S3 backend; bucket name in the git-ignored `backend.hcl`). Run once per account; the first run in a new account is described in `bootstrap/README.md`.
+- `envs/dev/`: providers, backend partial config, locals, variables and outputs are present. Module calls in `main.tf` are commented out. Scheduled for removal (single `prod` environment).
+- `envs/prod/`: stub. `terraform.tf`, `backend.tf` (partial S3 backend, key `prod/terraform.tfstate`), `backend.hcl.example` and the lock file have content. `providers.tf`, `variables.tf`, `locals.tf`, `main.tf`, `outputs.tf` and `terraform.tfvars` are empty.
+- `modules/network`, `compute`, `dns`, `secrets`: stubs. Only `terraform.tf` has content. All four are planned for the EC2 target: `network` (VPC, public subnet, internet gateway, security group), `compute` (EC2, Elastic IP, instance profile, user data), `dns` (Cloudflare records and rate limiting rule), `secrets` (SSM parameters). A `monitoring` module is planned too. Each module `README.md` states its scope. The target design is in the parent `docs/`. Follow the parent docs when they conflict.
 
 ## Commands
 
@@ -61,4 +61,4 @@ Runs on push to `main` and on every PR. Permissions: `contents: read`.
 
 ## Parent docs
 
-Target AWS architecture (CloudFront, Lambda with Lambda Web Adapter, S3, `envs/prod`, OIDC CI/CD) and runbooks are in `../docs/` (architecture, `adr/`, `runbooks/`). Read them before adding modules or changing envs.
+Target AWS architecture (Cloudflare proxy, one EC2 instance with Docker Compose in a VPC, `envs/prod`, OIDC CI/CD with SSM Run Command deploys) and runbooks are in `../docs/` (architecture, `adr/`, `runbooks/`). Read them before adding modules or changing envs.

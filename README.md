@@ -1,33 +1,36 @@
 # portfolio-infra
 
-Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`. The ACM certificate and WAF used by CloudFront are in `us-east-1`.
+Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
 **Status:** `bootstrap/` is implemented. Environments and modules are scaffolding. The AWS target below is planned.
 
-The site is served by Vercel today. The move to AWS is planned. Its design records live in the private workspace repo, not in this repository.
+The site is served by Vercel today. The move to AWS is planned for a run of 2 to 3 months. Its design records live in the private workspace repo, not in this repository.
 
 ## Target architecture (planned)
 
-- **CloudFront** terminates TLS and routes requests. It uses an ACM certificate and AWS WAF, both in `us-east-1`.
-- **S3** (private bucket, Origin Access Control) serves `/_next/static/*`.
-- **Lambda** runs the Next.js app as an arm64 container image through the Lambda Web Adapter. It runs outside a VPC, so there are no VPC, subnets or EC2 instances.
-- **SSM Parameter Store** (SecureString) holds the Telegram bot secrets. Terraform creates placeholder values; real values are set out of band with the AWS CLI.
-- **Cloudflare** keeps DNS. The Cloudflare provider manages the records, DNS only.
-- **GitHub OIDC** roles, an ECR repository and AWS Budgets live in `envs/prod`. CI assumes the roles. Humans use short-term `aws login` sessions.
+- **Cloudflare** keeps DNS and proxies the site: TLS for visitors, caching, WAF and one rate limiting rule. The Cloudflare provider manages the records, all proxied.
+- **VPC** with one public subnet in one AZ and an internet gateway. No NAT gateway and no load balancer.
+- **EC2** (t4g.small, Amazon Linux 2023 arm64) with an Elastic IP runs Docker Compose: Caddy, with a Cloudflare Origin CA certificate, in front of the Next.js container. The security group admits TCP 443 from Cloudflare IP ranges only. SSH is closed; admin access uses SSM Session Manager.
+- **SSM Parameter Store** (SecureString) holds the Telegram bot secrets and the Origin CA certificate and key. Terraform creates placeholder values; real values are set out of band with the AWS CLI.
+- **ECR** stores the app image with immutable tags (git SHA). Deploys run the deploy script on the instance through SSM Run Command.
+- **CloudWatch** keeps container logs and alarms on EC2 status checks, with an SNS email topic. **AWS Budgets** warns on spend.
+- **GitHub OIDC** roles, the ECR repository and AWS Budgets live in `envs/prod`. CI assumes the roles. Humans use short-term `aws login` sessions.
+
+No CloudFront, Lambda or S3 bucket for static assets.
 
 ## Layout
 
 Status of each directory today:
 
 ```text
-bootstrap/            S3 bucket for Terraform state. Implemented. Run once per account, local state.
+bootstrap/            S3 bucket for Terraform state. Implemented. Its own state lives in that bucket.
 envs/
   dev/                Scaffolding. To be removed. Providers and backend are set; module calls are commented out.
-  prod/               Target single environment. Stub: only terraform.tf and the lock file today.
+  prod/               Target single environment. Stub: terraform.tf, backend.tf and the lock file today.
 modules/
-  network/            To be removed. The target design has no VPC.
-  compute/            To be removed. The target design has no EC2.
-  dns/                Planned: Cloudflare DNS records. Stub.
+  network/            Planned: VPC, public subnet, internet gateway, security group. Stub.
+  compute/            Planned: EC2 instance, Elastic IP, instance profile, user data. Stub.
+  dns/                Planned: Cloudflare records and rate limiting rule. Stub.
   secrets/            Planned: SSM SecureString parameters. Stub.
 .github/workflows/
   terraform-ci.yml    Format, validate and TFLint on push to main and on pull requests.
@@ -39,12 +42,11 @@ Each environment directory calls the local modules and has its own backend, vari
 
 | Module | Purpose | Status |
 | --- | --- | --- |
-| `static-assets` | Private S3 bucket for `/_next/static/*`, with OAC | Planned |
-| `app-function` | Lambda function, alias `live`, function URL | Planned |
-| `cdn` | CloudFront distribution, ACM certificate, WAF | Planned |
-| `secrets` | SSM SecureString parameters with placeholder values | Planned |
-| `dns` | Cloudflare DNS records | Planned |
-| `monitoring` | CloudWatch log groups and alarms, SNS topic | Planned |
+| `network` | VPC, one public subnet, internet gateway, route table, security group (443 from Cloudflare only) | Planned, stub |
+| `compute` | EC2 instance, Elastic IP, instance profile, user data (Compose file, Caddyfile, deploy script) | Planned, stub |
+| `dns` | Cloudflare records (proxied) and the rate limiting rule for the contact endpoint | Planned, stub |
+| `secrets` | SSM SecureString parameters with placeholder values | Planned, stub |
+| `monitoring` | CloudWatch log group, EC2 status alarms with recovery, SNS topic | Planned |
 
 The GitHub OIDC roles, the ECR repository and AWS Budgets are planned directly in `envs/prod`, not in a module.
 
@@ -56,7 +58,7 @@ The GitHub OIDC roles, the ECR repository and AWS Budgets are planned directly i
 
 ## Usage
 
-Account-specific values are kept out of the repository. The steps below use `envs/dev`, the only environment with example files today. Other environments follow the same pattern. Before the first run in an environment, copy the example files and fill them in:
+Account-specific values are kept out of the repository (`backend.hcl`, `account.auto.tfvars`). For `bootstrap/`, see [bootstrap/README.md](bootstrap/README.md). The steps below use `envs/dev`, the only environment with all example files today. Other environments follow the same pattern. Before the first run in an environment, copy the example files and fill them in:
 
 ```sh
 cd envs/dev

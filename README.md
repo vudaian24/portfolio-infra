@@ -4,7 +4,7 @@ Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a per
 
 **Status:** `bootstrap/` is implemented. Environments and modules are scaffolding. The AWS target below is planned.
 
-The site is served by Vercel today. The move to AWS is planned for a run of about 44 days, paid by the account's Free plan credits. Its design records live in the private workspace repo, not in this repository.
+The site is served by Vercel today. The move to AWS is planned for a run of about 44 days, paid by the account's credits. Its design records live in the private workspace repo, not in this repository.
 
 ## Target architecture (planned)
 

@@ -7,4 +7,5 @@ alb_ready = false
 cutover   = false
 
 # Pinned in Phase 2 after the first apply shows the recommended release (cluster-operations.md).
-node_release_version = null
+# 1.36.5-20261019 is the release EKS chose at creation on 2026-10-22, so pinning it changes nothing.
+node_release_version = "1.36.5-20261019"

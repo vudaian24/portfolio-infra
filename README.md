@@ -2,94 +2,80 @@
 
 Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
-**Status:** `bootstrap/` and `envs/prod` (network, secrets, ECR, GitHub OIDC) are implemented. The EKS, DNS and Budgets parts are still planned.
+**Status:** all modules are written and validated. Nothing is applied yet. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
 
-The site is served by Vercel today. The move to AWS is planned for a run of about 44 days, paid by the account's credits. Its design records live in the private workspace repo, not in this repository.
+## What it manages
 
-## Target architecture (planned)
+- **Network:** VPC, two public subnets, internet gateway, ALB security group (443 from Cloudflare only). No NAT gateway.
+- **Cluster** (`modules/compute`): EKS 1.36 (standard support), public endpoint limited to the admin allow-list, one managed node (t4g.medium, AL2023 arm64, 20 GB gp3, IMDSv2 hop limit 1), EKS add-ons, Pod Identity roles for the AWS Load Balancer Controller and External Secrets.
+- **DNS** (`modules/dns`, Cloudflare provider v5): ACM validation records, the test hostname `portfolio-aws` and the production hostname `portfolio` (Phase 3 and 4 switches), one contact-form rate limit rule.
+- **Secrets:** SSM SecureString placeholders (`modules/secrets`). Values are set with the AWS CLI (`docs/runbooks/secrets.md`).
+- **Registry and identity:** ECR `portfolio-prod-web`, GitHub OIDC roles for portfolio-web (deploy) and portfolio-infra (plan and apply), ACM certificate, AWS Budgets (140 USD).
 
-- **Cloudflare** keeps DNS and proxies the site: TLS for visitors, caching, WAF and one rate limiting rule. The Cloudflare provider manages the records, all proxied.
-- **VPC** with two public subnets in two AZs and an internet gateway. No NAT gateway.
-- **Amazon EKS** (Kubernetes 1.36) with one managed node, t4g.medium, Amazon Linux 2023 arm64, 20 GB gp3. The API endpoint accepts only the admin IP allow-list.
-- **ALB**, created in the cluster by the AWS Load Balancer Controller, with an ACM certificate. Its security group admits TCP 443 from Cloudflare IP ranges only.
-- In the cluster, deployed by **Argo CD** from [portfolio-gitops](https://github.com/vudaian24/portfolio-gitops): the Load Balancer Controller, External Secrets Operator, kube-prometheus-stack and the app. This repository holds no Kubernetes manifests.
-- **SSM Parameter Store** (SecureString) holds the Telegram secrets. Terraform creates placeholder values; real values are set out of band with the AWS CLI.
-- **ECR** stores the app image with immutable tags (git SHA).
-- **GitHub OIDC** roles, the ECR repository, the ACM certificate and AWS Budgets live in `envs/prod`. CI assumes the roles. Humans use short-term `aws login` sessions.
-
-Terraform uses only the AWS and Cloudflare providers. It never calls the Kubernetes API.
+Terraform calls only the AWS and Cloudflare APIs. It never calls the Kubernetes API. In-cluster resources are deployed by Argo CD from `portfolio-gitops`.
 
 ## Layout
 
-Status of each directory today:
-
 ```text
-bootstrap/            S3 bucket for Terraform state. Implemented. Its own state lives in that bucket.
-envs/
-  prod/               The only environment. Implemented: network, secrets, ECR, GitHub OIDC. Not yet: EKS, DNS.
-modules/
-  network/            Implemented: VPC, public subnets, internet gateway, ALB security group.
-  secrets/            Implemented: SSM SecureString placeholders.
-  compute/            Planned: EKS cluster, node group, EKS add-ons, Pod Identity. Stub.
-  dns/                Planned: Cloudflare records and rate limiting rule. Stub.
-.github/workflows/
-  terraform-ci.yml    Format, validate, TFLint and trivy config on push to main and on pull requests.
+bootstrap/            S3 state bucket (run once per account). Its own state is in that bucket.
+envs/prod/            The only environment: wiring, ACM, Budgets, ECR, OIDC roles, Terraform CI roles
+modules/network/      VPC, subnets, ALB security group
+modules/compute/      EKS cluster, node group, add-ons, Pod Identity (see its README)
+modules/dns/          Cloudflare records and rate limit (see its README)
+modules/secrets/      SSM SecureString placeholders
+.github/workflows/terraform-ci.yml   fmt, validate, TFLint, trivy, plan, apply
 ```
 
-Each environment directory calls the local modules and has its own backend, variables and state, following the [HashiCorp style guide](https://developer.hashicorp.com/terraform/language/style).
-
-### Planned modules
-
-| Module | Purpose | Status |
-| --- | --- | --- |
-| `network` | VPC, two public subnets with the ELB subnet tag, internet gateway, route table, ALB security group (443 from Cloudflare only) | Implemented |
-| `compute` | EKS cluster, access entries, managed node group and launch template, EKS add-ons, node role, Pod Identity associations | Planned, stub |
-| `dns` | Cloudflare records (proxied CNAMEs to the ALB, ACM validation) and the rate limiting rule | Planned, stub |
-| `secrets` | SSM SecureString parameters with placeholder values (write-only) | Implemented |
-
-The GitHub OIDC provider and role and the ECR repository are in `envs/prod/main.tf`. The ACM certificate and AWS Budgets are planned there too, not in a module.
-
-## Requirements
-
-- Terraform (version in `.terraform-version`, at least 1.11 for write-only SSM arguments)
-- AWS CLI v2, authenticated with `aws login`. Do not create or use long-lived access keys.
-- TFLint (optional, for local linting)
-- The Argo CD bootstrap reads the outputs `ecr_registry_host` and `vpc_id` from `envs/prod`; its charts and manifests are in `portfolio-gitops`
-
-## Usage
-
-Account-specific values are kept out of the repository (`backend.hcl`, `account.auto.tfvars`). For `bootstrap/`, see [bootstrap/README.md](bootstrap/README.md). The steps below use `envs/prod`, the only environment. Before the first run, copy the example files and fill them in:
-
-```sh
-cd envs/prod
-cp backend.hcl.example backend.hcl                  # state bucket name from bootstrap/
-cp account.auto.tfvars.example account.auto.tfvars  # AWS account ID (or set TF_VAR_aws_account_id)
-```
-
-Then:
-
-```sh
-aws login
-terraform init -backend-config=backend.hcl
-terraform plan
-```
-
-Apply is not run by hand in the target design. It runs in CI through the `production` GitHub environment, with manual approval.
-
-## Checks
-
-CI (`.github/workflows/terraform-ci.yml`) runs on every push to `main` and on pull requests. It uses no AWS credentials:
-
-- `terraform fmt -check -recursive -diff`
-- `terraform init -backend=false` and `terraform validate` for `bootstrap` and `envs/prod`
-- `tflint --recursive` with the `aws` ruleset, using TFLint v0.64.0
-- `trivy config` (HIGH and CRITICAL fail the job)
-
-CI has no plan or apply job yet.
-
-Run the same checks locally:
+## Local checks (no AWS credentials)
 
 ```sh
 terraform fmt -check -recursive
+for d in bootstrap envs/prod; do (cd "$d" && terraform init -backend=false -input=false && terraform validate); done
 tflint --init && tflint --recursive --config "$PWD/.tflint.hcl"
+trivy config --severity HIGH,CRITICAL --exit-code 1 --skip-dirs .terraform .
 ```
+
+## Phase 2: first apply (human, laptop)
+
+The workflow cannot assume roles that do not exist yet, so the first apply runs from a laptop with `aws login` (see `docs/runbooks/aws-login.md`).
+
+1. `bootstrap/`: create the state bucket as in `bootstrap/README.md`.
+2. `envs/prod/`: copy `account.auto.tfvars.example` to `account.auto.tfvars` and fill in the values. Then `terraform init -backend-config=backend.hcl` and `terraform plan`. Apply by hand once: this creates the roles the workflow needs.
+3. Read the outputs `tf_plan_role_arn`, `tf_apply_role_arn`, `web_ci_role_arn`, `ecr_registry_host`, `cluster_name` and set the GitHub settings in the next section.
+4. Set `node_release_version` in `terraform.tfvars` if you want to pin the node AMI (see `docs/runbooks/cluster-operations.md`).
+
+After that, changes go through `main`. The plan job runs on push, the apply job waits for approval in the `production` environment and applies the saved plan.
+
+## GitHub settings for portfolio-infra
+
+Set these in the repository settings. Values are secrets (not variables) so that the logs mask them.
+
+| Where | Name | Value |
+| --- | --- | --- |
+| Repository secret | `AWS_ACCOUNT_ID` | the 12-digit account ID |
+| Repository secret | `TF_STATE_BUCKET` | `portfolio-tfstate-<account>` (from `bootstrap`) |
+| Repository secret | `TF_BUDGET_EMAIL` | alert email |
+| Repository secret | `TF_ADMIN_PRINCIPAL_ARN` | admin role ARN |
+| Repository secret | `TF_ADMIN_CIDRS` | JSON list, for example `["203.0.113.10/32"]` |
+| Repository secret | `AWS_TF_PLAN_ROLE_ARN` | output `tf_plan_role_arn` |
+| Repository secret | `CLOUDFLARE_API_TOKEN_PLAN` | read-only Cloudflare token for the zone (data lookups). Read-only because the plan job has no environment. |
+| Repository variable | `TF_CI_ENABLED` | `true` turns on the plan and apply jobs; leave it unset until the CI roles exist and every secret here is set |
+| Repository secret | `TF_PLAN_PASSPHRASE` | long random passphrase; the plan job encrypts the plan artifact with it (gpg, AES256) and the apply job decrypts it |
+| Environment `production` secret | `AWS_TF_APPLY_ROLE_ARN` | output `tf_apply_role_arn` |
+| Environment `production` secret | `CLOUDFLARE_API_TOKEN` | zone token for DNS and rulesets |
+| Environment `production` | Required reviewer | the owner; deployment branches: `main` only |
+
+`envs/prod` also needs `aws_account_id`, `tfstate_bucket_name`, `budget_email`, `admin_cidrs` and `admin_principal_arn`. CI passes them as `TF_VAR_*` from the secrets above (the plan job only; the apply job uses the saved plan).
+
+The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@90129616/portfolio-infra@1427185252:ref:refs/heads/main` for plan, and `...:environment:production` for apply.
+
+## Cloudflare checks before Phase 3
+
+- SSL/TLS mode Full (strict) for the portfolio hostnames (Configuration Rule), see `modules/dns/README.md`.
+- The zone has no other `http_ratelimit` ruleset. The rule resource owns the zone entry point for that phase.
+
+## Notes
+
+- Public repository: the plan artifact holds variable values and resource attributes, so it is uploaded only encrypted with `TF_PLAN_PASSPHRASE` and kept one day. The plan job also masks every admin CIDR in the log, because GitHub masks a secret only as a whole string.
+- The Terraform apply role cannot write IAM (roles, policies, the OIDC provider) or EKS access entries, and it can pass only the four EKS roles (cluster, node, Load Balancer Controller, External Secrets). A role that can write policies for roles it may pass is admin-equivalent. A plan that changes `aws_iam_*` or `aws_eks_access_*` resources stops in the plan job; the owner applies it from a laptop, then CI plans no IAM change. An explicit Deny on the plan and apply roles stays as a second guard.
+- Destroy: no CI job. Follow `docs/runbooks/decommission.md`.

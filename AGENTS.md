@@ -6,15 +6,15 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 
 - Terraform 1.16.6 (`.terraform-version`). `required_version = ">= 1.11"` (write-only arguments on `aws_ssm_parameter` need 1.11; `use_lockfile` needs 1.10).
 - AWS provider `hashicorp/aws ~> 6.0`. Lock files `.terraform.lock.hcl` are committed; commit lock changes with provider changes.
+- Cloudflare provider `cloudflare/cloudflare ~> 5.0` (only `envs/prod`, v5 names: `cloudflare_dns_record`, `cloudflare_ruleset`, `data "cloudflare_zone"` with `filter`). Token from `CLOUDFLARE_API_TOKEN`, never in a file.
 - TFLint with `.tflint.hcl`: `terraform` plugin (recommended preset) and `aws` plugin 0.49.0. CI uses TFLint v0.64.0.
 
 ## Current state
 
-- `bootstrap/`: implemented. Creates the state bucket `portfolio-tfstate-<account_id>` with versioning, SSE-S3, public access blocked, TLS-only policy and `prevent_destroy`. Its own state lives in that bucket (key `bootstrap/terraform.tfstate`, partial S3 backend; bucket name in the git-ignored `backend.hcl`). Account guard: `aws_account_id` in the git-ignored `account.auto.tfvars`. Run once per account; the first run is described in `bootstrap/README.md`.
-- `envs/prod/`: the only environment (`envs/dev` was removed). Implemented: `network` module (VPC, two public subnets, internet gateway, ALB security group), `secrets` module (SSM SecureString placeholders), ECR repository `portfolio-prod-web` with immutable tags and a lifecycle policy, GitHub OIDC provider and role `portfolio-prod-web-ci`. Outputs: `ecr_registry_host`, `vpc_id`, `web_ci_role_arn`, `ecr_repository_url`, `public_subnet_ids`, `alb_security_group_id`.
-- `modules/compute`, `dns`: stubs, not called yet. Only `terraform.tf` has content. Planned: `compute` (EKS cluster, node group, add-ons, Pod Identity), `dns` (Cloudflare records and rate limiting rule). Each module `README.md` states its scope.
-- No Kubernetes manifests here. Argo CD config and the app chart live in the `portfolio-gitops` repository (parent `../docs/adr/0007-separate-gitops-repository.md`). Do not add a `k8s/` directory. Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources.
-- The target design is in the parent `docs/`. Follow the parent docs when they conflict.
+- `bootstrap/`: implemented. State bucket `portfolio-tfstate-<account_id>` (versioning, SSE-S3, `prevent_destroy`). Run once per account.
+- `envs/prod/`: the only environment. Implemented and validated, not applied: `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Phase 3 and 4 switches: `alb_ready`, `cutover` (`terraform.tfvars`).
+- Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources (Argo CD, from `portfolio-gitops`).
+- Design decisions and deviations are in `README.md` and each module README. The first apply runs from a laptop (`README.md`, Phase 2).
 
 ## Commands
 
@@ -44,13 +44,12 @@ Run from the repo root unless noted.
 
 ## CI today (`.github/workflows/terraform-ci.yml`)
 
-Runs on push to `main` and on every PR. Permissions: `contents: read`. Every action is pinned to a commit SHA; checkout does not persist credentials. Cancel-in-progress is off on `main`.
+Permissions `contents: read`; OIDC `id-token: write` only in the plan and apply jobs. Every action is pinned to a commit SHA; checkout does not persist credentials.
 
-- `fmt`: `terraform fmt -check -recursive -diff`.
-- `validate` (matrix: `bootstrap`, `envs/prod`): `terraform init -backend=false -input=false`, then `terraform validate`. No AWS credentials in CI.
-- `tflint`: `tflint --init` then `tflint --recursive --config ... --format compact`.
-- `trivy`: `trivy config` with HIGH and CRITICAL findings failing the job. The binary is downloaded and checked against the SHA-256 checksums.
-- CI has no plan, apply or drift job yet. They need CI IAM roles that do not exist yet (follow-up).
+- `fmt`, `validate` (matrix `bootstrap`, `envs/prod`, no credentials), `tflint`, `trivy`.
+- `plan` (push to main and weekly schedule, only when the repository variable `TF_CI_ENABLED` is `true`): assumes the plan role (trusts `ref:refs/heads/main` only), stops if the plan changes IAM or EKS access entries (those are applied from a laptop), and saves the plan encrypted with `TF_PLAN_PASSPHRASE` as a one-day artifact. No environment.
+- `apply` (push to main): environment `production` (reviewer approval), applies the saved plan only. Concurrency group never cancels.
+- Secrets and variable names: see `README.md`.
 
 ## Never do
 

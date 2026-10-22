@@ -104,7 +104,7 @@ variable "node_release_version" {
 }
 
 variable "production_hostname" {
-  description = "Production hostname served by Vercel today and by the ALB after cutover."
+  description = "Production hostname, served by the ALB after cutover."
   type        = string
   default     = "portfolio.anvd.io.vn"
 }

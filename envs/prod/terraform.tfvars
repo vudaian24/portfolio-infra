@@ -2,7 +2,7 @@ environment = "prod"
 region      = "ap-southeast-1"
 
 # Phase 2: infrastructure. Phase 3: set alb_ready = true after Argo CD created the Ingress.
-# Phase 4: set cutover = true (with the import in docs/runbooks/dns-cutover.md).
+# Phase 4: set cutover = true; it creates the portfolio record (docs/runbooks/dns-cutover.md).
 alb_ready = false
 cutover   = false
 

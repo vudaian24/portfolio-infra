@@ -34,7 +34,7 @@ variable "contact_rate_limit" {
 }
 
 variable "cutover" {
-  description = "Set to true at Phase 4 to point the production hostname at the ALB. Before this the Vercel record is not managed here (docs/runbooks/dns-cutover.md)."
+  description = "Set to true at Phase 4 to create the production hostname record pointing at the ALB (docs/runbooks/dns-cutover.md)."
   type        = bool
   default     = false
 

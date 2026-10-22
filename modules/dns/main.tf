@@ -38,7 +38,7 @@ resource "cloudflare_dns_record" "test" {
   }
 }
 
-# Phase 4 only. Adopt the existing Vercel record first (import in docs/runbooks/dns-cutover.md).
+# Phase 4 only. Import first only if a portfolio record exists again (README, cutover).
 resource "cloudflare_dns_record" "production" {
   count = var.cutover ? 1 : 0
 

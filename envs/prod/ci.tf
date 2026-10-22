@@ -157,6 +157,8 @@ data "aws_iam_policy_document" "tf_apply" {
       "eks:DescribeCluster",
       "eks:UpdateClusterConfig",
       "eks:UpdateClusterVersion",
+      "eks:DescribeUpdate",
+      "eks:ListUpdates",
       "eks:DeleteCluster",
       "eks:TagResource",
       "eks:UntagResource",

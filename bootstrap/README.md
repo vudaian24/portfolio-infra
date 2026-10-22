@@ -8,7 +8,7 @@ The bucket is configured with:
 - SSE-S3 encryption, public access blocked, TLS-only access.
 - `prevent_destroy` to guard against an accidental `terraform destroy`.
 
-No DynamoDB table is needed: state is locked with `use_lockfile = true` (S3 native locking, Terraform >= 1.10).
+No DynamoDB table is needed: state is locked with `use_lockfile = true` (S3 native locking, Terraform >= 1.11).
 
 ## State
 
@@ -20,6 +20,7 @@ The bucket does not exist yet, so the first apply uses local state and then move
 
 ```sh
 cd bootstrap
+cp account.auto.tfvars.example account.auto.tfvars   # AWS account ID, git-ignored
 mv backend.tf backend.tf.off          # first run only: local state
 terraform init
 terraform apply
@@ -33,9 +34,12 @@ rm terraform.tfstate terraform.tfstate.backup
 
 ## Later runs
 
+The directory checks `allowed_account_ids` against `aws_account_id`, so a wrong account fails before any change.
+
 ```sh
 cd bootstrap
 cp backend.hcl.example backend.hcl    # once per machine; set the bucket name
+cp account.auto.tfvars.example account.auto.tfvars   # once per machine; set the account ID
 terraform init -backend-config=backend.hcl
 terraform plan
 ```

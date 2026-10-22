@@ -9,4 +9,4 @@ Planned: Cloudflare records for the zone `anvd.io.vn`, using the Cloudflare prov
 
 Every record that points at the ALB must stay proxied.
 
-Stub today: only `terraform.tf` has content. The target design is in the parent workspace `docs/`.
+Stub today: only `terraform.tf` has content. Not called from `envs/prod` yet. The target design is in the parent workspace `docs/`.

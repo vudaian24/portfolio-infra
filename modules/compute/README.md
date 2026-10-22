@@ -6,8 +6,8 @@ Planned: the EKS cluster and its node.
 - Access entries for the admin user and the CI roles. No implicit cluster-creator admin.
 - Managed node group `portfolio-prod-default`: 1× t4g.medium, Amazon Linux 2023 arm64, desired = min = max = 1, in a public subnet. Launch template: 20 GB gp3 encrypted, IMDSv2 required with hop limit 1. AMI release version pinned by the caller.
 - EKS add-ons: `vpc-cni` (prefix delegation, max pods 30), `coredns`, `kube-proxy`, `eks-pod-identity-agent`, `metrics-server`.
-- Node role (worker, ECR pull, CNI) and Pod Identity associations for the AWS Load Balancer Controller and External Secrets Operator (`ssm:GetParameter` on `/portfolio/prod/*`).
+- Node role (worker, ECR pull, CNI) and Pod Identity associations for the AWS Load Balancer Controller and External Secrets Operator (`ssm:GetParameter*` on `/portfolio/prod/*`).
 
-In-cluster resources are deployed by Argo CD from `k8s/`, not by this module.
+In-cluster resources are deployed by Argo CD from the `portfolio-gitops` repository, not by this module.
 
-Stub today: only `terraform.tf` has content. The target design is in the parent workspace `docs/`.
+Stub today: only `terraform.tf` has content. Not called from `envs/prod` yet. The target design is in the parent workspace `docs/`.

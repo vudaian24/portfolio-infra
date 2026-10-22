@@ -2,7 +2,7 @@
 
 Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
-**Status:** `bootstrap/` is implemented. Environments and modules are scaffolding. The AWS target below is planned.
+**Status:** `bootstrap/` and `envs/prod` (network, secrets, ECR, GitHub OIDC) are implemented. The EKS, DNS and Budgets parts are still planned.
 
 The site is served by Vercel today. The move to AWS is planned for a run of about 44 days, paid by the account's credits. Its design records live in the private workspace repo, not in this repository.
 
@@ -26,15 +26,14 @@ Status of each directory today:
 ```text
 bootstrap/            S3 bucket for Terraform state. Implemented. Its own state lives in that bucket.
 envs/
-  dev/                Scaffolding. To be removed. Providers and backend are set; module calls are commented out.
-  prod/               Target single environment. Stub: terraform.tf, backend.tf and the lock file today.
+  prod/               The only environment. Implemented: network, secrets, ECR, GitHub OIDC. Not yet: EKS, DNS.
 modules/
-  network/            Planned: VPC, public subnets, internet gateway, ALB security group. Stub.
+  network/            Implemented: VPC, public subnets, internet gateway, ALB security group.
+  secrets/            Implemented: SSM SecureString placeholders.
   compute/            Planned: EKS cluster, node group, EKS add-ons, Pod Identity. Stub.
   dns/                Planned: Cloudflare records and rate limiting rule. Stub.
-  secrets/            Planned: SSM SecureString parameters. Stub.
 .github/workflows/
-  terraform-ci.yml    Format, validate and TFLint on push to main and on pull requests.
+  terraform-ci.yml    Format, validate, TFLint and trivy config on push to main and on pull requests.
 ```
 
 Each environment directory calls the local modules and has its own backend, variables and state, following the [HashiCorp style guide](https://developer.hashicorp.com/terraform/language/style).
@@ -43,26 +42,26 @@ Each environment directory calls the local modules and has its own backend, vari
 
 | Module | Purpose | Status |
 | --- | --- | --- |
-| `network` | VPC, two public subnets with the ELB subnet tag, internet gateway, route table, ALB security group (443 from Cloudflare only) | Planned, stub |
+| `network` | VPC, two public subnets with the ELB subnet tag, internet gateway, route table, ALB security group (443 from Cloudflare only) | Implemented |
 | `compute` | EKS cluster, access entries, managed node group and launch template, EKS add-ons, node role, Pod Identity associations | Planned, stub |
 | `dns` | Cloudflare records (proxied CNAMEs to the ALB, ACM validation) and the rate limiting rule | Planned, stub |
-| `secrets` | SSM SecureString parameters with placeholder values | Planned, stub |
+| `secrets` | SSM SecureString parameters with placeholder values (write-only) | Implemented |
 
-The GitHub OIDC roles, the ECR repository, the ACM certificate and AWS Budgets are planned directly in `envs/prod`, not in a module.
+The GitHub OIDC provider and role and the ECR repository are in `envs/prod/main.tf`. The ACM certificate and AWS Budgets are planned there too, not in a module.
 
 ## Requirements
 
-- Terraform (version in `.terraform-version`, at least 1.10 for S3 native state locking)
+- Terraform (version in `.terraform-version`, at least 1.11 for write-only SSM arguments)
 - AWS CLI v2, authenticated with `aws login`. Do not create or use long-lived access keys.
 - TFLint (optional, for local linting)
-- The Argo CD bootstrap will read the planned outputs `ecr_registry_host` and `vpc_id` from `envs/prod`; its charts and manifests are in `portfolio-gitops`
+- The Argo CD bootstrap reads the outputs `ecr_registry_host` and `vpc_id` from `envs/prod`; its charts and manifests are in `portfolio-gitops`
 
 ## Usage
 
-Account-specific values are kept out of the repository (`backend.hcl`, `account.auto.tfvars`). For `bootstrap/`, see [bootstrap/README.md](bootstrap/README.md). The steps below use `envs/dev`, the only environment with all example files today. Other environments follow the same pattern. Before the first run in an environment, copy the example files and fill them in:
+Account-specific values are kept out of the repository (`backend.hcl`, `account.auto.tfvars`). For `bootstrap/`, see [bootstrap/README.md](bootstrap/README.md). The steps below use `envs/prod`, the only environment. Before the first run, copy the example files and fill them in:
 
 ```sh
-cd envs/dev
+cd envs/prod
 cp backend.hcl.example backend.hcl                  # state bucket name from bootstrap/
 cp account.auto.tfvars.example account.auto.tfvars  # AWS account ID (or set TF_VAR_aws_account_id)
 ```
@@ -82,8 +81,9 @@ Apply is not run by hand in the target design. It runs in CI through the `produc
 CI (`.github/workflows/terraform-ci.yml`) runs on every push to `main` and on pull requests. It uses no AWS credentials:
 
 - `terraform fmt -check -recursive -diff`
-- `terraform init -backend=false` and `terraform validate` for `bootstrap`, `envs/dev` and `envs/prod`
+- `terraform init -backend=false` and `terraform validate` for `bootstrap` and `envs/prod`
 - `tflint --recursive` with the `aws` ruleset, using TFLint v0.64.0
+- `trivy config` (HIGH and CRITICAL fail the job)
 
 CI has no plan or apply job yet.
 

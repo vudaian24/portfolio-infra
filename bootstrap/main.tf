@@ -39,6 +39,8 @@ resource "aws_s3_bucket_versioning" "tfstate" {
   }
 }
 
+# SSE-S3 is deliberate: state is not worth a customer managed KMS key (monthly key cost).
+#trivy:ignore:AVD-AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
 

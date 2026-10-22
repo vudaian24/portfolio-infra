@@ -8,3 +8,6 @@ provider "aws" {
     tags = local.common_tags
   }
 }
+
+# Reads CLOUDFLARE_API_TOKEN from the environment (zone-scoped token, see docs/runbooks/secrets.md).
+provider "cloudflare" {}

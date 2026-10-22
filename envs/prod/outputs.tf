@@ -1,6 +1,21 @@
+output "acm_certificate_arn" {
+  description = "ARN of the ACM certificate for the ALB (portfolio.anvd.io.vn and portfolio-aws.anvd.io.vn)."
+  value       = aws_acm_certificate_validation.web.certificate_arn
+}
+
 output "alb_security_group_id" {
   description = "ID of the ALB security group portfolio-prod-web (443 from Cloudflare only)."
   value       = module.network.alb_security_group_id
+}
+
+output "cluster_endpoint" {
+  description = "Endpoint of the EKS API (admin allow-list)."
+  value       = module.compute.cluster_endpoint
+}
+
+output "cluster_name" {
+  description = "Name of the EKS cluster, for aws eks update-kubeconfig."
+  value       = module.compute.cluster_name
 }
 
 output "ecr_registry_host" {
@@ -13,9 +28,34 @@ output "ecr_repository_url" {
   value       = aws_ecr_repository.web.repository_url
 }
 
+output "external_secrets_role_arn" {
+  description = "ARN of the External Secrets Pod Identity role."
+  value       = module.compute.external_secrets_role_arn
+}
+
+output "load_balancer_controller_role_arn" {
+  description = "ARN of the AWS Load Balancer Controller Pod Identity role."
+  value       = module.compute.load_balancer_controller_role_arn
+}
+
+output "node_group_name" {
+  description = "Name of the managed node group."
+  value       = module.compute.node_group_name
+}
+
 output "public_subnet_ids" {
   description = "IDs of the two public subnets."
   value       = module.network.public_subnet_ids
+}
+
+output "tf_apply_role_arn" {
+  description = "ARN of the apply role for portfolio-infra (GitHub secret AWS_TF_APPLY_ROLE_ARN, environment production)."
+  value       = aws_iam_role.tf_apply.arn
+}
+
+output "tf_plan_role_arn" {
+  description = "ARN of the plan role for portfolio-infra (GitHub secret AWS_TF_PLAN_ROLE_ARN)."
+  value       = aws_iam_role.tf_plan.arn
 }
 
 output "vpc_id" {

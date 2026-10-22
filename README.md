@@ -2,7 +2,7 @@
 
 Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
-**Status:** `bootstrap/` and `envs/prod` are applied; `envs/prod` was applied from a laptop on 2026-10-22 (Phase 2). `alb_ready` and `cutover` are still `false`, and Terraform CI is off until `TF_CI_ENABLED` is set. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
+**Status:** `bootstrap/` and `envs/prod` are applied; `envs/prod` was applied from a laptop on 2026-10-22 (Phase 2). `alb_ready` and `cutover` are still `false`. Terraform CI is on since 2026-10-22 (`TF_CI_ENABLED`): later changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
 
 ## What it manages
 

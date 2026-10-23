@@ -126,7 +126,7 @@ jobs:
     name: Plan (envs/prod)
     needs: [fmt, validate, tflint, trivy]
     # Off until the first laptop apply has created the CI roles and the secrets are set
-    # (README, Phase 2). The apply job needs this job, so it is skipped too.
+    # (README, First apply). The apply job needs this job, so it is skipped too.
     if: github.event_name != 'pull_request' && vars.TF_CI_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -180,7 +180,7 @@ jobs:
       # The plan prints the ALB DNS name as the content of the Cloudflare records. Anyone who
       # knows it could proxy to the ALB from another Cloudflare account (docs/architecture/aws-eks.md,
       # Origin exposure), so mask it. The ALB belongs to the Load Balancer Controller and does not
-      # exist before Phase 3 or after decommission; then there is nothing to mask.
+      # exist before the first app deploy or after decommission; then there is nothing to mask.
       - name: Mask the ALB DNS name in the log
         run: |
           alb="$(aws elbv2 describe-load-balancers --names portfolio-prod-web \
@@ -203,7 +203,7 @@ jobs:
             | select(.change.actions != ["no-op"] and .change.actions != ["read"])
             | .address')"
           if [ -n "$addresses" ]; then
-            echo "::error::this plan changes IAM or EKS access entries. Apply it from a laptop as the admin (README, Phase 2), then re-run."
+            echo "::error::this plan changes IAM or EKS access entries. Apply it from a laptop as the admin (README, First apply), then re-run."
             printf '%s\n' "$addresses"
             exit 1
           fi

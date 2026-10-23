@@ -9,4 +9,4 @@ The VPC for the EKS cluster and the ALB security group.
 - ALB security group `portfolio-prod-web` (Name tag, which the AWS Load Balancer Controller matches): inbound TCP 443 from Cloudflare's IPv4 ranges only (`cloudflare_ipv4_cidrs`, validated), outbound TCP `app_port` (3000) inside the VPC.
 - No VPC flow logs: the design has no CloudWatch logs. The trivy ignores are on purpose; see the comments in `main.tf`.
 
-Stub status: complete for this scope. The Cloudflare range list was fetched from https://www.cloudflare.com/ips-v4 on 2026-10-22.
+The Cloudflare range list in `variables.tf` comes from <https://www.cloudflare.com/ips-v4>. Update it when Cloudflare changes it.

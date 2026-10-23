@@ -2,7 +2,7 @@
 
 Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
-**Status:** `bootstrap/` and `envs/prod` are applied; `envs/prod` was applied from a laptop on 2026-10-22 (Phase 2). `alb_ready` and `cutover` are `true` since 2026-10-23 (Phase 3 and the DNS cutover). The public EKS endpoint is off since 2026-10-23 (`public_endpoint = false`); admins use the Session Manager tunnel. Terraform CI is on since 2026-10-22 (`TF_CI_ENABLED`): later changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
+**Status:** `bootstrap/` and `envs/prod` are applied. `alb_ready` and `cutover` are `true`, and `public_endpoint` is `false`: admins use the Session Manager tunnel. Terraform CI is on (`TF_CI_ENABLED`), so changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
 
 ## What it manages
 
@@ -36,12 +36,12 @@ tflint --init && tflint --recursive --config "$PWD/.tflint.hcl"
 trivy config --severity HIGH,CRITICAL --exit-code 1 --skip-dirs .terraform .
 ```
 
-## Phase 2: first apply (human, laptop)
+## First apply (human, laptop)
 
 The workflow cannot assume roles that do not exist yet, so the first apply runs from a laptop with `aws login` (see `docs/runbooks/aws-login.md`).
 
 1. `bootstrap/`: create the state bucket as in `bootstrap/README.md`.
-2. `envs/prod/`: copy `account.auto.tfvars.example` to `account.auto.tfvars` and fill in the values. Then `terraform init -backend-config=backend.hcl` and `terraform plan`. Apply by hand once: this creates the roles the workflow needs.
+2. `envs/prod/`: set `alb_ready` and `cutover` to `false` in `terraform.tfvars`, because the ALB does not exist yet (`modules/dns/README.md`). Copy `account.auto.tfvars.example` to `account.auto.tfvars` and fill in the values. Then `terraform init -backend-config=backend.hcl` and `terraform plan`. Apply by hand once: this creates the roles the workflow needs.
 3. Read the outputs `tf_plan_role_arn`, `tf_apply_role_arn`, `web_ci_role_arn`, `ecr_registry_host`, `cluster_name` and set the GitHub settings in the next section.
 4. Set `node_release_version` in `terraform.tfvars` if you want to pin the node AMI (see `docs/runbooks/cluster-operations.md`).
 
@@ -70,7 +70,7 @@ Set these in the repository settings. Values are secrets (not variables) so that
 
 The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@90129616/portfolio-infra@1427185252:ref:refs/heads/main` for plan, and `...:environment:production` for apply.
 
-## Cloudflare checks before Phase 3
+## Cloudflare checks before `alb_ready`
 
 - SSL/TLS mode Full (strict) for the portfolio hostnames (Configuration Rule), see `modules/dns/README.md`.
 - The zone has no other `http_ratelimit` ruleset. The rule resource owns the zone entry point for that phase.
@@ -79,7 +79,7 @@ The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@9
 
 `scripts/eks-tunnel.sh` opens the EKS API on `https://127.0.0.1:8443` through a Session Manager port forwarding session from the node to the private endpoint, and switches kubectl to the context `portfolio-prod-tunnel`. Access needs `aws login` and the admin access entry, not an allow-listed IP. Run it in its own terminal; Ctrl-C closes the tunnel. Needs the AWS CLI, the Session Manager plugin (`brew install --cask session-manager-plugin`) and kubectl.
 
-- The node role has the five Session Manager actions (`modules/compute/nodes.tf`). The SSM Agent registered only after a node reboot: the policy was attached on 2026-10-23 while the agent had given up after its first failed start.
+- The node role has the five Session Manager actions (`modules/compute/nodes.tf`). If the node started before the role had them, the SSM Agent has given up: reboot the node.
 - A session closes after 20 minutes without traffic (Session Manager default). Run the script again. If it stops at `Starting session`, press Ctrl-C and run it again.
 - Break-glass, when Session Manager or the node does not work: put your IP in `admin_cidrs` (the `TF_ADMIN_CIDRS` secret and `account.auto.tfvars`), set `public_endpoint = true` in `terraform.tfvars`, and apply. Then `aws eks update-kubeconfig --region ap-southeast-1 --name portfolio-prod`. Turn it off again afterwards.
 - A principal that may start sessions on the node can also open a shell on it. The admin already has cluster admin rights, so this adds no real access.
@@ -88,6 +88,6 @@ The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@9
 
 - Public repository: the plan artifact holds variable values and resource attributes, so it is uploaded only encrypted with `TF_PLAN_PASSPHRASE` and kept one day. The plan job also masks every admin CIDR in the log, because GitHub masks a secret only as a whole string.
 - The Terraform apply role cannot write IAM (roles, policies, the OIDC provider) or EKS access entries, and it can pass only the four EKS roles (cluster, node, Load Balancer Controller, External Secrets). A role that can write policies for roles it may pass is admin-equivalent. A plan that changes `aws_iam_*` or `aws_eks_access_*` resources stops in the plan job; the owner applies it from a laptop, then CI plans no IAM change. An explicit Deny on the plan and apply roles stays as a second guard.
-- The apply role reads EKS update status (`eks:DescribeUpdate`, `eks:ListUpdates`), so it can wait for cluster updates such as an `admin_cidrs` change. These were missing on 2026-10-22: the CI apply sent the allow-list update, then failed while waiting for it. The fix in `envs/prod/ci.tf` is an IAM change, so it was applied from a laptop.
+- The apply role reads EKS update status (`eks:DescribeUpdate`, `eks:ListUpdates`), so it can wait for cluster updates such as an `admin_cidrs` change.
 - `admin_cidrs` is used only while `public_endpoint` is true. Then it must be the same list in the `TF_ADMIN_CIDRS` secret and in `account.auto.tfvars` on every machine that plans locally; a local plan with an older list removes the other entries from the EKS allow-list.
 - Destroy: no CI job. Follow `docs/runbooks/decommission.md`.

@@ -12,9 +12,9 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 ## Current state
 
 - `bootstrap/`: implemented. State bucket `portfolio-tfstate-<account_id>` (versioning, SSE-S3, `prevent_destroy`). Run once per account.
-- `envs/prod/`: the only environment. Applied from a laptop on 2026-10-22 (Phase 2); the AWS credits run from then and the stack must be destroyed by 2026-12-01: `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Switches in `terraform.tfvars`: `alb_ready` and `cutover` (both `true`). `public_endpoint = false`: the EKS API is private, and admins reach it with `scripts/eks-tunnel.sh` (Session Manager); `true` is break-glass only.
+- `envs/prod/`: the only environment, applied; the stack must be destroyed by 2026-12-01. It holds `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Switches in `terraform.tfvars`: `alb_ready` and `cutover` (both `true`). `public_endpoint = false`: the EKS API is private, and admins reach it with `scripts/eks-tunnel.sh` (Session Manager); `true` is break-glass only.
 - Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources (Argo CD, from `portfolio-gitops`).
-- Design decisions and deviations are in `README.md` and each module README. The first apply runs from a laptop (`README.md`, Phase 2).
+- Design decisions and deviations are in `README.md` and each module README. The first apply runs from a laptop (`README.md`, First apply).
 
 ## Commands
 
@@ -58,10 +58,10 @@ Permissions `contents: read`; OIDC `id-token: write` only in the plan and apply 
 - Never print or paste state contents, plan output containing secrets, or the account ID into commits, PRs or chat.
 - Never open `~/.aws/*`. Use only short-term `aws login` credentials. Never create access keys.
 - Do not remove `prevent_destroy` from the bootstrap state bucket, and do not turn off `allowed_account_ids`.
-- Do not put secrets in `.tf` or `.tfvars` files. Store secret values in SSM Parameter Store (target design) and reference them by name.
+- Do not put secrets in `.tf` or `.tfvars` files. Store secret values in SSM Parameter Store and reference them by name.
 - This repo is also checked out as a submodule of the `portfolio` workspace repo. Push changes here first; the workspace records the new commit afterwards.
 - Commit on `main` and push it directly. Do not open pull requests.
 
 ## Parent docs
 
-Target AWS architecture (Cloudflare proxy, ALB, one-node Amazon EKS cluster, Argo CD GitOps from `portfolio-gitops`, `envs/prod`, OIDC CI/CD) and runbooks are in `../docs/` (architecture, `adr/`, `runbooks/`). Read them before adding modules or changing envs.
+AWS architecture (Cloudflare proxy, ALB, one-node Amazon EKS cluster, Argo CD GitOps from `portfolio-gitops`, `envs/prod`, OIDC CI/CD) and runbooks are in `../docs/` (architecture, `adr/`, `runbooks/`). Read them before adding modules or changing envs.

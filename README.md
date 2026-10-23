@@ -2,7 +2,7 @@
 
 Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
-**Status:** `bootstrap/` and `envs/prod` are applied; `envs/prod` was applied from a laptop on 2026-10-22 (Phase 2). `alb_ready` and `cutover` are still `false`. Terraform CI is on since 2026-10-22 (`TF_CI_ENABLED`): later changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
+**Status:** `bootstrap/` and `envs/prod` are applied; `envs/prod` was applied from a laptop on 2026-10-22 (Phase 2). `alb_ready` and `cutover` are `true` since 2026-10-23 (Phase 3 and the DNS cutover). Terraform CI is on since 2026-10-22 (`TF_CI_ENABLED`): later changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
 
 ## What it manages
 
@@ -23,6 +23,7 @@ modules/network/      VPC, subnets, ALB security group
 modules/compute/      EKS cluster, node group, add-ons, Pod Identity (see its README)
 modules/dns/          Cloudflare records and rate limit (see its README)
 modules/secrets/      SSM SecureString placeholders
+scripts/eks-tunnel.sh kubectl access through Session Manager (no IP allow-list)
 .github/workflows/terraform-ci.yml   fmt, validate, TFLint, trivy, plan, apply
 ```
 
@@ -73,6 +74,14 @@ The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@9
 
 - SSL/TLS mode Full (strict) for the portfolio hostnames (Configuration Rule), see `modules/dns/README.md`.
 - The zone has no other `http_ratelimit` ruleset. The rule resource owns the zone entry point for that phase.
+
+## Cluster access (kubectl)
+
+`scripts/eks-tunnel.sh` opens the EKS API on `https://127.0.0.1:8443` through a Session Manager port forwarding session from the node to the private endpoint, and switches kubectl to the context `portfolio-prod-tunnel`. Access needs `aws login` and the admin access entry, not an allow-listed IP. Run it in its own terminal; Ctrl-C closes the tunnel. Needs the AWS CLI, the Session Manager plugin (`brew install --cask session-manager-plugin`) and kubectl.
+
+- The node role has the five Session Manager actions (`modules/compute/nodes.tf`). Like every IAM change, it is applied from a laptop. The public endpoint, limited to `admin_cidrs`, stays on until every admin machine uses the tunnel.
+- A session closes after 20 minutes without traffic (Session Manager default). Run the script again.
+- A principal that may start sessions on the node can also open a shell on it. The admin already has cluster admin rights, so this adds no real access.
 
 ## Notes
 

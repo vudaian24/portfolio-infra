@@ -7,7 +7,7 @@ The EKS cluster `portfolio-prod` (Kubernetes 1.36) with its one managed node, EK
 | File | Resources |
 | --- | --- |
 | `main.tf` | Cluster role (`AmazonEKSClusterPolicy`), the cluster, the admin access entry with `AmazonEKSClusterAdminPolicy` |
-| `nodes.tf` | Node role (`AmazonEKSWorkerNodePolicy`, `AmazonEC2ContainerRegistryPullOnly`, `AmazonEKS_CNI_Policy`), launch template, managed node group `portfolio-prod-default` |
+| `nodes.tf` | Node role (`AmazonEKSWorkerNodePolicy`, `AmazonEC2ContainerRegistryPullOnly`, `AmazonEKS_CNI_Policy`, and `portfolio-prod-node-session-manager` for Session Manager), launch template, managed node group `portfolio-prod-default` |
 | `addons.tf` | `vpc-cni` (prefix delegation), `kube-proxy`, `eks-pod-identity-agent`, then `coredns`, `metrics-server` |
 | `pod_identity.tf` | Load Balancer Controller and External Secrets roles and Pod Identity associations |
 | `policies/` | `aws-load-balancer-controller-iam-policy.json`: AWS-published policy of kubernetes-sigs/aws-load-balancer-controller tag `v3.6.1` (`docs/install/iam_policy.json`), unmodified |
@@ -15,6 +15,7 @@ The EKS cluster `portfolio-prod` (Kubernetes 1.36) with its one managed node, EK
 ## Decisions
 
 - **Endpoint.** Public endpoint limited to `admin_cidrs`, plus private endpoint, so the node uses the VPC endpoint. CI never calls the Kubernetes API (deploy design), so CI has no access entries. The design's Layers row mentioned CI access entries; this was dropped and aws-eks.md says so.
+- **Session Manager.** Admins reach the private endpoint through a port forwarding session on the node (`scripts/eks-tunnel.sh`), so their IPs need not be allow-listed. The EKS AL2023 AMI runs the SSM Agent. The node role gets only the five actions AWS lists for a custom Session Manager instance role, not `AmazonSSMManagedInstanceCore`, which also allows `ssm:GetParameter` and `GetParameters` on every parameter.
 - **Authentication.** API mode, no implicit cluster-creator admin. The only human entry is `admin_principal_arn`.
 - **Support.** Standard support (no extended-support charge).
 - **Bootstrap add-ons off** (`bootstrap_self_managed_addons = false`). EKS would otherwise install its own `aws-node`, `kube-proxy` and CoreDNS, which Terraform could not pin or update. Terraform creates them instead.

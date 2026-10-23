@@ -30,6 +30,36 @@ resource "aws_iam_role_policy_attachment" "node" {
   policy_arn = "arn:${local.partition}:iam::aws:policy/${each.key}"
 }
 
+# Session Manager on the node: admins reach the private API endpoint through a port
+# forwarding session (scripts/eks-tunnel.sh) instead of an IP allow-list. These are the five
+# actions AWS lists for a custom Session Manager instance role. AmazonSSMManagedInstanceCore
+# is not used: it also allows ssm:GetParameter and GetParameters on every parameter.
+data "aws_iam_policy_document" "node_session_manager" {
+  statement {
+    sid    = "SessionManager"
+    effect = "Allow"
+    actions = [
+      "ssm:UpdateInstanceInformation",
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "node_session_manager" {
+  name        = "${var.name_prefix}-node-session-manager"
+  description = "Session Manager on the ${var.name_prefix} node: port forwarding to the private EKS endpoint"
+  policy      = data.aws_iam_policy_document.node_session_manager.json
+}
+
+resource "aws_iam_role_policy_attachment" "node_session_manager" {
+  role       = aws_iam_role.node.name
+  policy_arn = aws_iam_policy.node_session_manager.arn
+}
+
 # Launch template without an AMI: EKS keeps the AL2023 image and its bootstrap. The node
 # subnet and instance type stay in the node group (prohibited in the template).
 # IMDSv2 only with hop limit 1, so pods cannot reach the node role credentials.

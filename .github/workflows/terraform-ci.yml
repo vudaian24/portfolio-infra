@@ -253,6 +253,15 @@ jobs:
       run:
         working-directory: envs/prod
     steps:
+      # GitHub masks only the secrets a job references. ARNs in the apply log hold the account ID.
+      - name: Mask the account ID in the log
+        # Runs before checkout, when envs/prod does not exist yet
+        working-directory: .
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          if [ -n "$AWS_ACCOUNT_ID" ]; then echo "::add-mask::$AWS_ACCOUNT_ID"; fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -287,6 +296,9 @@ jobs:
       - name: terraform init
         run: terraform init -input=false -no-color -backend-config="bucket=${TF_STATE_BUCKET}"
 
-      # Applies the saved plan file only, never a fresh plan
+      # Applies the saved plan file only, never a fresh plan. The outputs hold account, VPC and
+      # resource IDs, and the log of this public repository is public, so it ends before them.
       - name: terraform apply
-        run: terraform apply -input=false -no-color -lock-timeout=5m tfplan
+        run: |
+          set -o pipefail
+          terraform apply -input=false -no-color -lock-timeout=5m tfplan | sed -u '/^Outputs:$/,$d'

@@ -8,7 +8,7 @@ Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a per
 
 - **Network:** VPC, two public subnets, internet gateway, ALB security group (443 from Cloudflare only). No NAT gateway.
 - **Cluster** (`modules/compute`): EKS 1.36 (standard support), private API endpoint only (public endpoint for `admin_cidrs` as break-glass), one managed node (t4g.medium, AL2023 arm64, 20 GB gp3, IMDSv2 hop limit 1), EKS add-ons, Pod Identity roles for the AWS Load Balancer Controller and External Secrets.
-- **DNS** (`modules/dns`, Cloudflare provider v5): ACM validation records, the test hostname `portfolio-aws` and the production hostname `portfolio` (Phase 3 and 4 switches), one contact-form rate limit rule.
+- **DNS** (`modules/dns`, Cloudflare provider v5): ACM validation records, the production hostname `portfolio`, one contact-form rate limit rule.
 - **Secrets:** SSM SecureString placeholders (`modules/secrets`). Values are set with the AWS CLI (`docs/runbooks/secrets.md`).
 - **Registry and identity:** ECR `portfolio-prod-web`, GitHub OIDC roles for portfolio-web (deploy) and portfolio-infra (plan and apply), ACM certificate, AWS Budgets (140 USD).
 

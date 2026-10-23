@@ -19,26 +19,7 @@ resource "cloudflare_dns_record" "acm_validation" {
 }
 
 # The ALB admits Cloudflare only, so the record stays proxied (aws-eks.md, Origin exposure).
-resource "cloudflare_dns_record" "test" {
-  count = var.alb_ready ? 1 : 0
-
-  zone_id = data.cloudflare_zone.main.zone_id
-  name    = var.test_hostname
-  type    = "CNAME"
-  content = var.alb_dns_name
-  ttl     = 1
-  proxied = true
-  comment = "Test hostname for the EKS stack; removed after cutover (managed by Terraform)"
-
-  lifecycle {
-    precondition {
-      condition     = var.alb_dns_name != null
-      error_message = "alb_dns_name must be set when alb_ready is true."
-    }
-  }
-}
-
-# Phase 4 only. Import first only if a portfolio record exists again (README, cutover).
+# Import first if a portfolio record exists outside Terraform (README, cutover).
 resource "cloudflare_dns_record" "production" {
   count = var.cutover ? 1 : 0
 
@@ -58,8 +39,8 @@ resource "cloudflare_dns_record" "production" {
   }
 }
 
-# One rate limiting rule (Free plan). Scoped to the two portfolio hosts so it does not
-# touch other hosts in the zone. Counts requests per client IP over 10 s.
+# One rate limiting rule (Free plan). Scoped to the production host so it does not touch
+# other hosts in the zone. Counts requests per client IP over 10 s.
 resource "cloudflare_ruleset" "contact_rate_limit" {
   zone_id     = data.cloudflare_zone.main.zone_id
   name        = "portfolio contact form rate limit"
@@ -73,9 +54,8 @@ resource "cloudflare_ruleset" "contact_rate_limit" {
       enabled     = true
       description = "Contact form POST rate limit"
       expression = format(
-        "(http.host eq \"%s\" or http.host eq \"%s\") and http.request.method eq \"POST\" and http.request.uri.path eq \"%s\"",
+        "http.host eq \"%s\" and http.request.method eq \"POST\" and http.request.uri.path eq \"%s\"",
         var.production_hostname,
-        var.test_hostname,
         var.contact_rate_limit.path,
       )
 

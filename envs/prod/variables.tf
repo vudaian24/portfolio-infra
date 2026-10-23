@@ -9,7 +9,7 @@ variable "admin_principal_arn" {
 }
 
 variable "alb_ready" {
-  description = "True after the ALB exists (the controller created it from the Ingress). Creates the portfolio-aws record. Set in terraform.tfvars in Phase 3."
+  description = "True once the ALB exists (the controller creates it from the Ingress), so its DNS name can be read."
   type        = bool
   default     = false
 }
@@ -47,7 +47,7 @@ variable "cluster_version" {
 }
 
 variable "cutover" {
-  description = "True at Phase 4 only: point the production hostname at the ALB. See docs/runbooks/dns-cutover.md."
+  description = "Point the production hostname at the ALB. See docs/runbooks/dns-cutover.md."
   type        = bool
   default     = false
 }
@@ -104,7 +104,7 @@ variable "node_release_version" {
 }
 
 variable "production_hostname" {
-  description = "Production hostname, served by the ALB after cutover."
+  description = "Production hostname, served by the ALB."
   type        = string
   default     = "portfolio.anvd.io.vn"
 }
@@ -138,7 +138,7 @@ variable "tfstate_bucket_name" {
 }
 
 variable "test_hostname" {
-  description = "Test hostname on the ALB before cutover. Removed after cutover (aws-eks.md, Names)."
+  description = "Second name on the ACM certificate, with no DNS record. Removing it replaces the certificate, which cannot be deleted while the ALB listener uses it."
   type        = string
   default     = "portfolio-aws.anvd.io.vn"
 }

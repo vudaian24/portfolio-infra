@@ -167,5 +167,4 @@ module "dns" {
   cutover      = var.cutover
 
   production_hostname = var.production_hostname
-  test_hostname       = var.test_hostname
 }

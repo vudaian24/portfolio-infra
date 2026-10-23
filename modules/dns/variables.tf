@@ -14,13 +14,13 @@ variable "alb_dns_name" {
 }
 
 variable "alb_ready" {
-  description = "Set to true once the ALB exists (after Argo CD created the Ingress). Creates the test CNAME. See README."
+  description = "True once the ALB exists (the controller creates it from the Ingress). Required by cutover."
   type        = bool
   default     = false
 }
 
 variable "contact_rate_limit" {
-  description = "Rate limit for the contact form on each portfolio host (Free plan: one rule, period 10 s, block)."
+  description = "Rate limit for the contact form on the production host (Free plan: one rule, period 10 s, block)."
   type = object({
     path                = string
     requests_per_period = number
@@ -34,7 +34,7 @@ variable "contact_rate_limit" {
 }
 
 variable "cutover" {
-  description = "Set to true at Phase 4 to create the production hostname record pointing at the ALB (docs/runbooks/dns-cutover.md)."
+  description = "Create the production hostname record pointing at the ALB (docs/runbooks/dns-cutover.md)."
   type        = bool
   default     = false
 
@@ -48,12 +48,6 @@ variable "production_hostname" {
   description = "Production hostname, a record inside zone_name."
   type        = string
   default     = "portfolio.anvd.io.vn"
-}
-
-variable "test_hostname" {
-  description = "Test hostname that serves the same ALB before cutover; removed after cutover (docs/architecture/aws-eks.md)."
-  type        = string
-  default     = "portfolio-aws.anvd.io.vn"
 }
 
 variable "zone_name" {

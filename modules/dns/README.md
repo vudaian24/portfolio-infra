@@ -8,21 +8,20 @@ Cloudflare records for the zone `anvd.io.vn` (provider `cloudflare/cloudflare` v
 | --- | --- | --- |
 | `data.cloudflare_zone.main` | always | Looked up with `filter = { name = zone_name }`. Token from `CLOUDFLARE_API_TOKEN` in the environment. |
 | `cloudflare_dns_record.acm_validation[*]` | always | ACM DNS validation CNAMEs, **not proxied**. Keyed by domain name, so each name gets one record. |
-| `cloudflare_dns_record.test[0]` (`portfolio-aws`) | `alb_ready = true` | CNAME to the ALB DNS name, **proxied**. |
 | `cloudflare_dns_record.production[0]` (`portfolio`) | `cutover = true` only | CNAME to the ALB, proxied. Created at cutover; the old Vercel record was deleted on 2026-10-22, see below. |
-| `cloudflare_ruleset.contact_rate_limit` | always | One zone rule in phase `http_ratelimit`: `POST /web-api/contact` on the two portfolio hosts, counted per `ip.src` over 10 s, block for 10 s after 5 requests. This is the Free plan limit (one rule, 10 s period). |
+| `cloudflare_ruleset.contact_rate_limit` | always | One zone rule in phase `http_ratelimit`: `POST /web-api/contact` on the production host, counted per `ip.src` over 10 s, block for 10 s after 5 requests. This is the Free plan limit (one rule, 10 s period). |
 
 The ALB itself is created by the AWS Load Balancer Controller from the Ingress, named `portfolio-prod-web`. The caller looks it up with `data "aws_lb"` and passes `alb_dns_name`. Only when `alb_ready` is true, so the lookup does not fail before the ALB exists.
 
 ## Phase steps (Terraform side)
 
 1. **Phase 2:** apply with `alb_ready = false`, `cutover = false`. Creates the ACM validation records and the rate limit rule.
-2. **Phase 3:** after Argo CD created the Ingress and the ALB exists, set `alb_ready = true` in `terraform.tfvars` and apply. Creates `portfolio-aws`.
+2. **Phase 3:** after Argo CD created the Ingress and the ALB exists, set `alb_ready = true` in `terraform.tfvars` and apply.
 3. **Phase 4:** see the cutover below.
 
 ## Cutover: the production record (not managed before Phase 4)
 
-`portfolio` was a DNS-only CNAME to Vercel until 2026-10-22. It was deleted then, because Vercel's CAA records blocked the ACM certificate (see [Vercel CAA and ACM](#vercel-caa-and-acm)), and the site stays offline until cutover. With no `portfolio` record in the zone, the Phase 4 change (one commit to `main`) only sets `cutover = true` in `terraform.tfvars`. The plan must show one new `production[0]` record, a proxied CNAME to the ALB, and nothing else.
+`portfolio` was a DNS-only CNAME to Vercel until 2026-10-22. It was deleted then, because Vercel's CAA records blocked the ACM certificate (see [Vercel CAA and ACM](#vercel-caa-and-acm)). With no `portfolio` record in the zone, the Phase 4 change (one commit to `main`) only sets `cutover = true` in `terraform.tfvars`. The plan must show one new `production[0]` record, a proxied CNAME to the ALB, and nothing else.
 
 If a `portfolio` record exists again at cutover, for example after a rollback to Vercel, adopt it in the same change instead of creating a second one:
 
@@ -51,7 +50,7 @@ On 2026-10-22 the first certificate failed this way. The record was deleted, the
 
 These are zone-wide settings. They affect every host in `anvd.io.vn`, including Vercel after a rollback, so Terraform does not manage them (the design only scopes them to the portfolio hosts):
 
-- **SSL/TLS mode for `portfolio-aws` (and later `portfolio`): Full (strict).** The ALB only speaks HTTPS on 443 with a public certificate. Flexible or Full would fail or send traffic over HTTP. Use a Configuration Rule scoped to the two hostnames, as [dns-cutover.md](../../../docs/runbooks/dns-cutover.md) step 4 says, rather than the zone setting.
+- **SSL/TLS mode for `portfolio`: Full (strict).** The ALB only speaks HTTPS on 443 with a public certificate. Flexible or Full would fail or send traffic over HTTP. Use a Configuration Rule scoped to the hostname, as [dns-cutover.md](../../../docs/runbooks/dns-cutover.md) step 4 says, rather than the zone setting.
 - **Always Use HTTPS:** check it is what you want for the zone. Changing it affects every host in the zone.
 
 ## Notes

@@ -2,12 +2,12 @@
 
 Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
-**Status:** `bootstrap/` and `envs/prod` are applied; `envs/prod` was applied from a laptop on 2026-10-22 (Phase 2). `alb_ready` and `cutover` are `true` since 2026-10-23 (Phase 3 and the DNS cutover). Terraform CI is on since 2026-10-22 (`TF_CI_ENABLED`): later changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
+**Status:** `bootstrap/` and `envs/prod` are applied; `envs/prod` was applied from a laptop on 2026-10-22 (Phase 2). `alb_ready` and `cutover` are `true` since 2026-10-23 (Phase 3 and the DNS cutover). The public EKS endpoint is off since 2026-10-23 (`public_endpoint = false`); admins use the Session Manager tunnel. Terraform CI is on since 2026-10-22 (`TF_CI_ENABLED`): later changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
 
 ## What it manages
 
 - **Network:** VPC, two public subnets, internet gateway, ALB security group (443 from Cloudflare only). No NAT gateway.
-- **Cluster** (`modules/compute`): EKS 1.36 (standard support), public endpoint limited to the admin allow-list, one managed node (t4g.medium, AL2023 arm64, 20 GB gp3, IMDSv2 hop limit 1), EKS add-ons, Pod Identity roles for the AWS Load Balancer Controller and External Secrets.
+- **Cluster** (`modules/compute`): EKS 1.36 (standard support), private API endpoint only (public endpoint for `admin_cidrs` as break-glass), one managed node (t4g.medium, AL2023 arm64, 20 GB gp3, IMDSv2 hop limit 1), EKS add-ons, Pod Identity roles for the AWS Load Balancer Controller and External Secrets.
 - **DNS** (`modules/dns`, Cloudflare provider v5): ACM validation records, the test hostname `portfolio-aws` and the production hostname `portfolio` (Phase 3 and 4 switches), one contact-form rate limit rule.
 - **Secrets:** SSM SecureString placeholders (`modules/secrets`). Values are set with the AWS CLI (`docs/runbooks/secrets.md`).
 - **Registry and identity:** ECR `portfolio-prod-web`, GitHub OIDC roles for portfolio-web (deploy) and portfolio-infra (plan and apply), ACM certificate, AWS Budgets (140 USD).
@@ -57,7 +57,7 @@ Set these in the repository settings. Values are secrets (not variables) so that
 | Repository secret | `TF_STATE_BUCKET` | `portfolio-tfstate-<account>` (from `bootstrap`) |
 | Repository secret | `TF_BUDGET_EMAIL` | alert email |
 | Repository secret | `TF_ADMIN_PRINCIPAL_ARN` | admin role ARN |
-| Repository secret | `TF_ADMIN_CIDRS` | JSON list, for example `["203.0.113.10/32"]` |
+| Repository secret | `TF_ADMIN_CIDRS` | JSON list: `[]`, or for break-glass the admin IPs, for example `["203.0.113.10/32"]` |
 | Repository secret | `AWS_TF_PLAN_ROLE_ARN` | output `tf_plan_role_arn` |
 | Repository secret | `CLOUDFLARE_API_TOKEN_PLAN` | read-only Cloudflare token for the zone (data lookups). Read-only because the plan job has no environment. |
 | Repository variable | `TF_CI_ENABLED` | `true` turns on the plan and apply jobs; leave it unset until the CI roles exist and every secret here is set |
@@ -79,8 +79,9 @@ The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@9
 
 `scripts/eks-tunnel.sh` opens the EKS API on `https://127.0.0.1:8443` through a Session Manager port forwarding session from the node to the private endpoint, and switches kubectl to the context `portfolio-prod-tunnel`. Access needs `aws login` and the admin access entry, not an allow-listed IP. Run it in its own terminal; Ctrl-C closes the tunnel. Needs the AWS CLI, the Session Manager plugin (`brew install --cask session-manager-plugin`) and kubectl.
 
-- The node role has the five Session Manager actions (`modules/compute/nodes.tf`). Like every IAM change, it is applied from a laptop. The public endpoint, limited to `admin_cidrs`, stays on until every admin machine uses the tunnel.
-- A session closes after 20 minutes without traffic (Session Manager default). Run the script again.
+- The node role has the five Session Manager actions (`modules/compute/nodes.tf`). The SSM Agent registered only after a node reboot: the policy was attached on 2026-10-23 while the agent had given up after its first failed start.
+- A session closes after 20 minutes without traffic (Session Manager default). Run the script again. If it stops at `Starting session`, press Ctrl-C and run it again.
+- Break-glass, when Session Manager or the node does not work: put your IP in `admin_cidrs` (the `TF_ADMIN_CIDRS` secret and `account.auto.tfvars`), set `public_endpoint = true` in `terraform.tfvars`, and apply. Then `aws eks update-kubeconfig --region ap-southeast-1 --name portfolio-prod`. Turn it off again afterwards.
 - A principal that may start sessions on the node can also open a shell on it. The admin already has cluster admin rights, so this adds no real access.
 
 ## Notes
@@ -88,5 +89,5 @@ The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@9
 - Public repository: the plan artifact holds variable values and resource attributes, so it is uploaded only encrypted with `TF_PLAN_PASSPHRASE` and kept one day. The plan job also masks every admin CIDR in the log, because GitHub masks a secret only as a whole string.
 - The Terraform apply role cannot write IAM (roles, policies, the OIDC provider) or EKS access entries, and it can pass only the four EKS roles (cluster, node, Load Balancer Controller, External Secrets). A role that can write policies for roles it may pass is admin-equivalent. A plan that changes `aws_iam_*` or `aws_eks_access_*` resources stops in the plan job; the owner applies it from a laptop, then CI plans no IAM change. An explicit Deny on the plan and apply roles stays as a second guard.
 - The apply role reads EKS update status (`eks:DescribeUpdate`, `eks:ListUpdates`), so it can wait for cluster updates such as an `admin_cidrs` change. These were missing on 2026-10-22: the CI apply sent the allow-list update, then failed while waiting for it. The fix in `envs/prod/ci.tf` is an IAM change, so it was applied from a laptop.
-- `admin_cidrs` must be the same list in the `TF_ADMIN_CIDRS` secret and in `account.auto.tfvars` on every machine that plans locally. A local plan with an older list removes the other entries from the EKS allow-list; do not apply it.
+- `admin_cidrs` is used only while `public_endpoint` is true. Then it must be the same list in the `TF_ADMIN_CIDRS` secret and in `account.auto.tfvars` on every machine that plans locally; a local plan with an older list removes the other entries from the EKS allow-list.
 - Destroy: no CI job. Follow `docs/runbooks/decommission.md`.

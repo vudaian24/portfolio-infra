@@ -12,7 +12,7 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 ## Current state
 
 - `bootstrap/`: implemented. State bucket `portfolio-tfstate-<account_id>` (versioning, SSE-S3, `prevent_destroy`). Run once per account.
-- `envs/prod/`: the only environment. Applied from a laptop on 2026-10-22 (Phase 2); the AWS credits run from then and the stack must be destroyed by 2026-12-01: `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Phase 3 and 4 switches: `alb_ready`, `cutover` (`terraform.tfvars`).
+- `envs/prod/`: the only environment. Applied from a laptop on 2026-10-22 (Phase 2); the AWS credits run from then and the stack must be destroyed by 2026-12-01: `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Phase 3 and 4 switches: `alb_ready`, `cutover` (`terraform.tfvars`, both `true` since 2026-10-23). `public_endpoint = false`: the EKS API is private, and admins reach it with `scripts/eks-tunnel.sh` (Session Manager); `true` is break-glass only.
 - Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources (Argo CD, from `portfolio-gitops`).
 - Design decisions and deviations are in `README.md` and each module README. The first apply runs from a laptop (`README.md`, Phase 2).
 

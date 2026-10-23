@@ -14,7 +14,7 @@ The EKS cluster `portfolio-prod` (Kubernetes 1.36) with its one managed node, EK
 
 ## Decisions
 
-- **Endpoint.** Public endpoint limited to `admin_cidrs`, plus private endpoint, so the node uses the VPC endpoint. CI never calls the Kubernetes API (deploy design), so CI has no access entries. The design's Layers row mentioned CI access entries; this was dropped and aws-eks.md says so.
+- **Endpoint.** Private endpoint only: the node uses it, and admins reach it through Session Manager. `public_endpoint = true` turns on the public endpoint for `admin_cidrs` as break-glass; a precondition refuses it with an empty list. CI never calls the Kubernetes API (deploy design), so CI has no access entries. The design's Layers row mentioned CI access entries; this was dropped and aws-eks.md says so.
 - **Session Manager.** Admins reach the private endpoint through a port forwarding session on the node (`scripts/eks-tunnel.sh`), so their IPs need not be allow-listed. The EKS AL2023 AMI runs the SSM Agent. The node role gets only the five actions AWS lists for a custom Session Manager instance role, not `AmazonSSMManagedInstanceCore`, which also allows `ssm:GetParameter` and `GetParameters` on every parameter.
 - **Authentication.** API mode, no implicit cluster-creator admin. The only human entry is `admin_principal_arn`.
 - **Support.** Standard support (no extended-support charge).
@@ -34,8 +34,8 @@ The EKS cluster `portfolio-prod` (Kubernetes 1.36) with its one managed node, EK
 
 ## Inputs with no default
 
-`admin_cidrs`, `admin_principal_arn`, `public_subnet_ids`, `name_prefix`, `secrets_path_prefix`. Account-specific values live in `envs/prod/account.auto.tfvars` (git-ignored).
+`admin_cidrs` (may be `[]`), `admin_principal_arn`, `public_subnet_ids`, `name_prefix`, `secrets_path_prefix`. Account-specific values live in `envs/prod/account.auto.tfvars` (git-ignored).
 
 ## Trivy
 
-Ignores are inline above `aws_eks_cluster.main` (AVD-AWS-0038, 0039, 0040), each with its reason. AVD-AWS-0040 is ignored because the endpoint is public by design, and it is limited by `public_access_cidrs`, which Trivy does not evaluate.
+Ignores are inline above `aws_eks_cluster.main` (AVD-AWS-0038, 0039), each with its reason. AVD-AWS-0040 (public endpoint) no longer needs an ignore: the endpoint is private unless `public_endpoint` is true.

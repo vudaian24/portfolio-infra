@@ -9,12 +9,12 @@ output "alb_security_group_id" {
 }
 
 output "cluster_endpoint" {
-  description = "Endpoint of the EKS API (admin allow-list)."
+  description = "Endpoint of the EKS API (private only unless public_endpoint is true)."
   value       = module.compute.cluster_endpoint
 }
 
 output "cluster_name" {
-  description = "Name of the EKS cluster, for aws eks update-kubeconfig."
+  description = "Name of the EKS cluster, used by scripts/eks-tunnel.sh."
   value       = module.compute.cluster_name
 }
 

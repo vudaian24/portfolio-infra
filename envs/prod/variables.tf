@@ -1,5 +1,5 @@
 variable "admin_cidrs" {
-  description = "IPv4 CIDR blocks of the admins that may reach the public EKS API. Set in account.auto.tfvars (never committed)."
+  description = "IPv4 CIDR blocks of the admins that may reach the public EKS API when public_endpoint is true (break-glass). May be []. Set in account.auto.tfvars (never committed)."
   type        = list(string)
 }
 
@@ -113,6 +113,12 @@ variable "project" {
   description = "Project name, used as the resource name prefix."
   type        = string
   default     = "portfolio"
+}
+
+variable "public_endpoint" {
+  description = "Break-glass switch: true turns on the public EKS API endpoint for admin_cidrs. Admins normally use the Session Manager tunnel (scripts/eks-tunnel.sh). Set in terraform.tfvars."
+  type        = bool
+  default     = false
 }
 
 variable "region" {

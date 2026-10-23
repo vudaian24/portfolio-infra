@@ -1,10 +1,10 @@
 variable "admin_cidrs" {
-  description = "IPv4 CIDR blocks allowed to reach the public EKS API endpoint (admin IP allow-list). No default: set in account.auto.tfvars."
+  description = "IPv4 CIDR blocks allowed to reach the public EKS API endpoint when public_endpoint is true (break-glass). May be empty. No default: set in account.auto.tfvars."
   type        = list(string)
 
   validation {
-    condition     = length(var.admin_cidrs) > 0 && alltrue([for c in var.admin_cidrs : can(cidrhost(c, 0)) && !can(regex(":", c))])
-    error_message = "admin_cidrs must be a non-empty list of IPv4 CIDR blocks."
+    condition     = alltrue([for c in var.admin_cidrs : can(cidrhost(c, 0)) && !can(regex(":", c))])
+    error_message = "admin_cidrs must be a list of IPv4 CIDR blocks."
   }
 
   validation {
@@ -85,6 +85,12 @@ variable "node_root_volume_size" {
     condition     = var.node_root_volume_size >= 20 && var.node_root_volume_size <= 50
     error_message = "node_root_volume_size must be between 20 and 50 GiB."
   }
+}
+
+variable "public_endpoint" {
+  description = "Turn on the public EKS API endpoint, limited to admin_cidrs. Break-glass only: admins reach the private endpoint through Session Manager (scripts/eks-tunnel.sh)."
+  type        = bool
+  default     = false
 }
 
 variable "public_subnet_ids" {

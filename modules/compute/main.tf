@@ -35,14 +35,11 @@ resource "aws_iam_role_policy_attachment" "eks_cluster" {
 }
 
 # Trivy ignores (each one justified):
-# - AVD-AWS-0040: the public endpoint is on, on purpose. public_access_cidrs = admin_cidrs
-#   limits it to the admin allow-list (aws-eks.md, Layers, Cluster); Trivy cannot see the CIDRs.
 # - AVD-AWS-0038: no control plane logs. The design has no CloudWatch logs (aws-eks.md, Cost).
 # - AVD-AWS-0039: no envelope encryption. A customer managed KMS key costs about 1 USD per month
 #   and the design has none. Kubernetes Secrets copy SSM values that already sit in this account.
 #trivy:ignore:AVD-AWS-0038
 #trivy:ignore:AVD-AWS-0039
-#trivy:ignore:AVD-AWS-0040
 resource "aws_eks_cluster" "main" {
   name                          = var.name_prefix
   role_arn                      = aws_iam_role.eks_cluster.arn
@@ -62,11 +59,20 @@ resource "aws_eks_cluster" "main" {
     support_type = "STANDARD"
   }
 
+  # Private endpoint only: the node uses it, and admins reach it through Session Manager
+  # (scripts/eks-tunnel.sh). public_endpoint is a break-glass switch for admin_cidrs.
   vpc_config {
     subnet_ids              = var.public_subnet_ids
-    endpoint_public_access  = true
+    endpoint_public_access  = var.public_endpoint
     endpoint_private_access = true
-    public_access_cidrs     = var.admin_cidrs
+    public_access_cidrs     = var.public_endpoint ? var.admin_cidrs : null
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.public_endpoint || length(var.admin_cidrs) > 0
+      error_message = "public_endpoint needs at least one CIDR in admin_cidrs."
+    }
   }
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster]

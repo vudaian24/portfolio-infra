@@ -4,7 +4,7 @@ output "cluster_arn" {
 }
 
 output "cluster_endpoint" {
-  description = "Endpoint of the EKS API (public, limited to admin_cidrs; nodes use the private endpoint)."
+  description = "Endpoint of the EKS API. Private only unless public_endpoint is true; admins reach it through scripts/eks-tunnel.sh."
   value       = aws_eks_cluster.main.endpoint
 }
 

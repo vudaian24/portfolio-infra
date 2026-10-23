@@ -136,6 +136,7 @@ module "compute" {
   admin_principal_arn = var.admin_principal_arn
   cluster_version     = var.cluster_version
   deletion_protection = var.cluster_deletion_protection
+  public_endpoint     = var.public_endpoint
   public_subnet_ids   = module.network.public_subnet_ids
 
   node_release_version = var.node_release_version

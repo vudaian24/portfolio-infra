@@ -177,6 +177,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_TF_PLAN_ROLE_ARN }}
           aws-region: ap-southeast-1
 
+      # The plan prints the ALB DNS name as the content of the Cloudflare records. Anyone who
+      # knows it could proxy to the ALB from another Cloudflare account (docs/architecture/aws-eks.md,
+      # Origin exposure), so mask it. The ALB belongs to the Load Balancer Controller and does not
+      # exist before Phase 3 or after decommission; then there is nothing to mask.
+      - name: Mask the ALB DNS name in the log
+        run: |
+          alb="$(aws elbv2 describe-load-balancers --names portfolio-prod-web \
+            --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null || true)"
+          if [ -n "$alb" ] && [ "$alb" != "None" ]; then echo "::add-mask::$alb"; fi
+
       - name: terraform init
         run: terraform init -input=false -no-color -backend-config="bucket=${TF_STATE_BUCKET}"
 

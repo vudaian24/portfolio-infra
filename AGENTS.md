@@ -51,6 +51,8 @@ Permissions `contents: read`; OIDC `id-token: write` only in the plan and apply 
 - `apply` (push to main): environment `production` (reviewer approval), applies the saved plan only. Concurrency group never cancels.
 - Secrets and variable names: see `README.md`.
 
+`.github/workflows/notify-workspace.yml`: on push to `main`, sends `repository_dispatch` (`submodule-updated`) to the private workspace repo `portfolio`, which then bumps its submodule pointer. Uses a GitHub App token (repository variable `WORKSPACE_SYNC_APP_CLIENT_ID`, repository secret `WORKSPACE_SYNC_APP_PRIVATE_KEY`); skipped while the variable is unset.
+
 ## Never do
 
 - Never run `terraform apply`, `terraform destroy`, `terraform import`, `terraform state rm` or `terraform state mv` without the user's explicit instruction in this session.

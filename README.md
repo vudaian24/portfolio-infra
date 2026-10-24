@@ -25,6 +25,7 @@ modules/dns/          Cloudflare records and rate limit (see its README)
 modules/secrets/      SSM SecureString placeholders
 scripts/eks-tunnel.sh kubectl access through Session Manager (no IP allow-list)
 .github/workflows/terraform-ci.yml   fmt, validate, TFLint, trivy, plan, apply
+.github/workflows/notify-workspace.yml  tells the workspace repo to record each push to main
 ```
 
 ## Local checks (no AWS credentials)

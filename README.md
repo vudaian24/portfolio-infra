@@ -78,11 +78,12 @@ The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@9
 
 ## Cluster access (kubectl)
 
-`scripts/eks-tunnel.sh` opens the EKS API on `https://127.0.0.1:8443` through a Session Manager port forwarding session from the node to the private endpoint, and switches kubectl to the context `portfolio-prod-tunnel`. Access needs `aws login` and the admin access entry, not an allow-listed IP. Run it in its own terminal; Ctrl-C closes the tunnel. Needs the AWS CLI, the Session Manager plugin (`brew install --cask session-manager-plugin`) and kubectl.
+`scripts/eks-tunnel.sh` opens the EKS API on `https://127.0.0.1:8443` through a Session Manager port forwarding session from the node to the private endpoint, and switches kubectl to the context `portfolio-prod-tunnel`. Access needs `aws login` and the admin access entry, not an allow-listed IP. Run it in its own terminal; Ctrl-C closes the tunnel. Needs the AWS CLI, the Session Manager plugin (macOS: `brew install --cask session-manager-plugin`; Ubuntu: the `.deb` from AWS, see `docs/runbooks/aws-login.md` in the workspace repo) and kubectl.
 
 - The node role has the five Session Manager actions (`modules/compute/nodes.tf`). If the node started before the role had them, the SSM Agent has given up: reboot the node.
 - A session closes after 20 minutes without traffic (Session Manager default). Run the script again. If it stops at `Starting session`, press Ctrl-C and run it again.
 - Break-glass, when Session Manager or the node does not work: put your IP in `admin_cidrs` (the `TF_ADMIN_CIDRS` secret and `account.auto.tfvars`), set `public_endpoint = true` in `terraform.tfvars`, and apply. Then `aws eks update-kubeconfig --region ap-southeast-1 --name portfolio-prod`. Turn it off again afterwards.
+- EKS add-ons follow the default version EKS lists for the cluster version (`modules/compute/addons.tf`). When AWS changes that default, any plan shows an in-place add-on update.
 - A principal that may start sessions on the node can also open a shell on it. The admin already has cluster admin rights, so this adds no real access.
 
 ## Notes

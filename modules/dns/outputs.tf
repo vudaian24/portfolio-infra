@@ -1,3 +1,8 @@
+output "account_id" {
+  description = "ID of the Cloudflare account that owns the zone."
+  value       = data.cloudflare_zone.main.account.id
+}
+
 output "acm_validation_fqdns" {
   description = "FQDNs of the ACM validation records, for aws_acm_certificate_validation."
   value       = [for record in cloudflare_dns_record.acm_validation : record.name]

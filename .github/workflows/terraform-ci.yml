@@ -140,6 +140,8 @@ jobs:
       TF_VAR_budget_email: ${{ secrets.TF_BUDGET_EMAIL }}
       TF_VAR_admin_principal_arn: ${{ secrets.TF_ADMIN_PRINCIPAL_ARN }}
       TF_VAR_admin_cidrs: ${{ secrets.TF_ADMIN_CIDRS }}
+      # Emails for Cloudflare Access (personal data); [] while the secret is unset
+      TF_VAR_access_allowed_emails: ${{ secrets.TF_ACCESS_ALLOWED_EMAILS || '[]' }}
       # Read-only zone token for data sources. A repository secret, because this job has no environment.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_PLAN }}
     defaults:
@@ -147,7 +149,8 @@ jobs:
         working-directory: envs/prod
     steps:
       # GitHub masks each secret as a whole string only. The plan prints the admin CIDRs one by
-      # one, so mask every element too.
+      # one, so mask every element too. The Access emails are a sensitive variable, so the plan
+      # hides them; mask them anyway in case a provider error echoes one.
       - name: Mask account values in the log
         # Runs before checkout, when envs/prod does not exist yet
         working-directory: .
@@ -157,6 +160,9 @@ jobs:
           done
           jq -r '.[]' <<<"$TF_VAR_admin_cidrs" | while read -r cidr; do
             if [ -n "$cidr" ]; then echo "::add-mask::$cidr"; fi
+          done
+          jq -r '.[]' <<<"$TF_VAR_access_allowed_emails" | while read -r email; do
+            if [ -n "$email" ]; then echo "::add-mask::$email"; fi
           done
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

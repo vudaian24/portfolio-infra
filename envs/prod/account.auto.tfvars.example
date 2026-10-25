@@ -11,3 +11,7 @@ admin_cidrs = []
 
 # Your IAM role (from aws login) that gets cluster admin, for example arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ADMIN_ROLE>
 admin_principal_arn = "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ADMIN_ROLE>"
+
+# Emails allowed through Cloudflare Access to Argo CD and Grafana (owner and viewers), used only when
+# admin_access_enabled = true. Must match the TF_ACCESS_ALLOWED_EMAILS secret.
+access_allowed_emails = []

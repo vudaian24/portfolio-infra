@@ -6,13 +6,13 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 
 - Terraform 1.16.6 (`.terraform-version`). `required_version = ">= 1.11"` (write-only arguments on `aws_ssm_parameter` need 1.11; `use_lockfile` needs 1.10).
 - AWS provider `hashicorp/aws ~> 6.0`. Lock files `.terraform.lock.hcl` are committed; commit lock changes with provider changes.
-- Cloudflare provider `cloudflare/cloudflare ~> 5.0` (only `envs/prod`, v5 names: `cloudflare_dns_record`, `cloudflare_ruleset`, `data "cloudflare_zone"` with `filter`). Token from `CLOUDFLARE_API_TOKEN`, never in a file.
+- Cloudflare provider `cloudflare/cloudflare ~> 5.0` (only `envs/prod`, v5 names: `cloudflare_dns_record`, `cloudflare_ruleset`, `data "cloudflare_zone"` with `filter`, `cloudflare_zero_trust_tunnel_cloudflared`, `cloudflare_zero_trust_tunnel_cloudflared_config`, `cloudflare_zero_trust_access_application`, `cloudflare_zero_trust_access_policy`, `cloudflare_zero_trust_access_identity_provider`). Token from `CLOUDFLARE_API_TOKEN`, never in a file.
 - TFLint with `.tflint.hcl`: `terraform` plugin (recommended preset) and `aws` plugin 0.49.0. CI uses TFLint v0.64.0.
 
 ## Current state
 
 - `bootstrap/`: implemented. State bucket `portfolio-tfstate-<account_id>` (versioning, SSE-S3, `prevent_destroy`). Run once per account.
-- `envs/prod/`: the only environment, applied; the stack must be destroyed by 2026-12-01. It holds `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Switches in `terraform.tfvars`: `alb_ready` and `cutover` (both `true`). `public_endpoint = false`: the EKS API is private, and admins reach it with `scripts/eks-tunnel.sh` (Session Manager); `true` is break-glass only.
+- `envs/prod/`: the only environment, applied; the stack must be destroyed by 2026-12-01. It holds `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), `admin_access` (Cloudflare Tunnel and Access for the admin UIs, ADR 0009), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Switches in `terraform.tfvars`: `alb_ready` and `cutover` (both `true`), `admin_access_enabled` (`false` until the Zero Trust organization and the token permissions exist). `public_endpoint = false`: the EKS API is private, and admins reach it with `scripts/eks-tunnel.sh` (Session Manager); `true` is break-glass only.
 - Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources (Argo CD, from `portfolio-gitops`).
 - Design decisions and deviations are in `README.md` and each module README. The first apply runs from a laptop (`README.md`, First apply).
 

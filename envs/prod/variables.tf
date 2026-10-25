@@ -1,3 +1,32 @@
+variable "access_allowed_emails" {
+  description = "Emails that may log in to Argo CD and Grafana through Cloudflare Access (owner and viewers). Personal data: set in account.auto.tfvars and the TF_ACCESS_ALLOWED_EMAILS secret, never committed. Used only when admin_access_enabled is true."
+  type        = list(string)
+  sensitive   = true
+  default     = []
+
+  validation {
+    condition     = !var.admin_access_enabled || length(var.access_allowed_emails) > 0
+    error_message = "access_allowed_emails must not be empty when admin_access_enabled is true."
+  }
+}
+
+variable "access_team_name" {
+  description = "Zero Trust team name (<team>.cloudflareaccess.com), created by hand with the organization. Required when admin_access_enabled is true."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = !var.admin_access_enabled || var.access_team_name != null
+    error_message = "access_team_name must be set when admin_access_enabled is true."
+  }
+}
+
+variable "admin_access_enabled" {
+  description = "Publish Argo CD and Grafana through Cloudflare Access and a Tunnel (ADR 0009, modules/admin_access). Set in terraform.tfvars."
+  type        = bool
+  default     = false
+}
+
 variable "admin_cidrs" {
   description = "IPv4 CIDR blocks of the admins that may reach the public EKS API when public_endpoint is true (break-glass). May be []. Set in account.auto.tfvars (never committed)."
   type        = list(string)
@@ -12,6 +41,12 @@ variable "alb_ready" {
   description = "True once the ALB exists (the controller creates it from the Ingress), so its DNS name can be read."
   type        = bool
   default     = false
+}
+
+variable "argocd_hostname" {
+  description = "Hostname of the Argo CD UI behind Cloudflare Access."
+  type        = string
+  default     = "argocd.anvd.io.vn"
 }
 
 variable "aws_account_id" {
@@ -95,6 +130,12 @@ variable "github_terraform_environment" {
   description = "GitHub environment of portfolio-infra whose apply job may assume the Terraform apply role."
   type        = string
   default     = "production"
+}
+
+variable "grafana_hostname" {
+  description = "Hostname of the Grafana UI behind Cloudflare Access."
+  type        = string
+  default     = "grafana.anvd.io.vn"
 }
 
 variable "node_release_version" {

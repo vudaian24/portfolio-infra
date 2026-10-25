@@ -9,6 +9,7 @@ Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a per
 - **Network:** VPC, two public subnets, internet gateway, ALB security group (443 from Cloudflare only). No NAT gateway.
 - **Cluster** (`modules/compute`): EKS 1.36 (standard support), private API endpoint only (public endpoint for `admin_cidrs` as break-glass), one managed node (t4g.medium, AL2023 arm64, 20 GB gp3, IMDSv2 hop limit 1), EKS add-ons, Pod Identity roles for the AWS Load Balancer Controller and External Secrets.
 - **DNS** (`modules/dns`, Cloudflare provider v5): ACM validation records, the production hostname `portfolio`, one contact-form rate limit rule.
+- **Admin access** (`modules/admin_access`, off until `admin_access_enabled = true`): Cloudflare Tunnel, Access apps and policy, and the `argocd` and `grafana` records for the admin UIs (ADR 0009). The site keeps the ALB.
 - **Secrets:** SSM SecureString placeholders (`modules/secrets`). Values are set with the AWS CLI (`docs/runbooks/secrets.md`).
 - **Registry and identity:** ECR `portfolio-prod-web`, GitHub OIDC roles for portfolio-web (deploy) and portfolio-infra (plan and apply), ACM certificate, AWS Budgets (140 USD).
 
@@ -22,6 +23,7 @@ envs/prod/            The only environment: wiring, ACM, Budgets, ECR, OIDC role
 modules/network/      VPC, subnets, ALB security group
 modules/compute/      EKS cluster, node group, add-ons, Pod Identity (see its README)
 modules/dns/          Cloudflare records and rate limit (see its README)
+modules/admin_access/ Cloudflare Tunnel and Access for Argo CD and Grafana (see its README)
 modules/secrets/      SSM SecureString placeholders
 scripts/eks-tunnel.sh kubectl access through Session Manager (no IP allow-list)
 .github/workflows/terraform-ci.yml   fmt, validate, TFLint, trivy, plan, apply
@@ -60,11 +62,12 @@ Set these in the repository settings. Values are secrets (not variables) so that
 | Repository secret | `TF_ADMIN_PRINCIPAL_ARN` | admin role ARN |
 | Repository secret | `TF_ADMIN_CIDRS` | JSON list: `[]`, or for break-glass the admin IPs, for example `["203.0.113.10/32"]` |
 | Repository secret | `AWS_TF_PLAN_ROLE_ARN` | output `tf_plan_role_arn` |
-| Repository secret | `CLOUDFLARE_API_TOKEN_PLAN` | read-only Cloudflare token for the zone (data lookups). Read-only because the plan job has no environment. |
+| Repository secret | `CLOUDFLARE_API_TOKEN_PLAN` | read-only Cloudflare token for the zone (data lookups). Read-only because the plan job has no environment. With `admin_access_enabled`, also Account: Cloudflare Tunnel, Access: Apps and Policies, and Access: Organizations, Identity Providers, and Groups, all Read. |
+| Repository secret | `TF_ACCESS_ALLOWED_EMAILS` | JSON list of the emails allowed through Cloudflare Access, for example `["owner@example.com"]`. Needed only with `admin_access_enabled`; `[]` when unset. |
 | Repository variable | `TF_CI_ENABLED` | `true` turns on the plan and apply jobs; leave it unset until the CI roles exist and every secret here is set |
 | Repository secret | `TF_PLAN_PASSPHRASE` | long random passphrase; the plan job encrypts the plan artifact with it (gpg, AES256) and the apply job decrypts it |
 | Environment `production` secret | `AWS_TF_APPLY_ROLE_ARN` | output `tf_apply_role_arn` |
-| Environment `production` secret | `CLOUDFLARE_API_TOKEN` | zone token for DNS and rulesets |
+| Environment `production` secret | `CLOUDFLARE_API_TOKEN` | zone token for DNS and rulesets. With `admin_access_enabled`, also the three account permissions above as Edit. |
 | Environment `production` | Required reviewer | the owner; deployment branches: `main` only |
 
 `envs/prod` also needs `aws_account_id`, `tfstate_bucket_name`, `budget_email`, `admin_cidrs` and `admin_principal_arn`. CI passes them as `TF_VAR_*` from the secrets above (the plan job only; the apply job uses the saved plan).

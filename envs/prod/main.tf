@@ -10,11 +10,10 @@ module "secrets" {
   source = "../../modules/secrets"
 
   path_prefix = "/${var.project}/${var.environment}"
-  parameter_names = toset([
-    "telegram-bot-token",
-    "telegram-chat-id",
-    "grafana-admin-password",
-  ])
+  parameter_names = setunion(
+    ["telegram-bot-token", "telegram-chat-id", "grafana-admin-password"],
+    var.admin_access_enabled ? ["cloudflare-tunnel-token"] : [],
+  )
 }
 
 # ECR repository for the app image. Tags are full git SHAs, so they never change.
@@ -167,4 +166,28 @@ module "dns" {
   cutover      = var.cutover
 
   production_hostname = var.production_hostname
+}
+
+# Argo CD and Grafana through Cloudflare Access and a Tunnel (ADR 0009). Off until the Zero Trust
+# organization exists and the Cloudflare tokens have the account permissions (modules/admin_access).
+module "admin_access" {
+  source = "../../modules/admin_access"
+  count  = var.admin_access_enabled ? 1 : 0
+
+  account_id     = module.dns.account_id
+  zone_id        = module.dns.zone_id
+  name           = "${local.name_prefix}-admin"
+  team_name      = var.access_team_name
+  allowed_emails = var.access_allowed_emails
+
+  apps = {
+    argocd = {
+      hostname = var.argocd_hostname
+      service  = "http://argocd-server.argocd:80"
+    }
+    grafana = {
+      hostname = var.grafana_hostname
+      service  = "http://kube-prometheus-stack-grafana.monitoring:80"
+    }
+  }
 }

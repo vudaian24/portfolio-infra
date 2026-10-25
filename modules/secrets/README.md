@@ -11,5 +11,6 @@ SSM SecureString parameters under a path prefix (`/portfolio/prod/*`), each crea
 | `/portfolio/prod/telegram-bot-token` | Telegram bot token |
 | `/portfolio/prod/telegram-chat-id` | Telegram chat ID |
 | `/portfolio/prod/grafana-admin-password` | Grafana admin password |
+| `/portfolio/prod/cloudflare-tunnel-token` | Token of the admin Cloudflare Tunnel, for `cloudflared`. Only when `admin_access_enabled` is true. |
 
-Not called yet. External Secrets Operator's IAM policy (`ssm:GetParameter*` on `/portfolio/prod/*`) belongs to the `compute` module and is not written yet.
+Called from `envs/prod`. External Secrets reads these parameters through its Pod Identity role (`ssm:GetParameter*` on `/portfolio/prod/*`), defined in the `compute` module.

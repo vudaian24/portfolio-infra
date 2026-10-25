@@ -1,3 +1,8 @@
+output "access_aud_tags" {
+  description = "Cloudflare Access AUD tags of the admin apps, for Grafana auth.jwt in portfolio-gitops. Empty while admin_access_enabled is false. Not secret."
+  value       = try(module.admin_access[0].access_aud_tags, {})
+}
+
 output "acm_certificate_arn" {
   description = "ARN of the ACM certificate for the ALB (portfolio.anvd.io.vn and portfolio-aws.anvd.io.vn)."
   value       = aws_acm_certificate_validation.web.certificate_arn
@@ -6,6 +11,11 @@ output "acm_certificate_arn" {
 output "alb_security_group_id" {
   description = "ID of the ALB security group portfolio-prod-web (443 from Cloudflare only)."
   value       = module.network.alb_security_group_id
+}
+
+output "cloudflare_tunnel_id" {
+  description = "ID of the admin Cloudflare Tunnel, null while admin_access_enabled is false."
+  value       = try(module.admin_access[0].tunnel_id, null)
 }
 
 output "cluster_endpoint" {

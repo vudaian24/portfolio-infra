@@ -266,6 +266,10 @@ resource "aws_cloudwatch_metric_alarm" "node_down" {
     AutoScalingGroupName = var.node_asg_name
   }
 
+  # No ok_actions. The loop re-enables alarm actions at the 06:45 tick while the
+  # node group is still at 0 and this alarm is still in ALARM, so a recovery
+  # action would mail every morning once the node joins. A daily mail is what
+  # teaches people to filter the alert away. The site answering again is the
+  # recovery signal; this alarm only has to report that it did not.
   alarm_actions = [aws_sns_topic.alerts.arn]
-  ok_actions    = [aws_sns_topic.alerts.arn]
 }

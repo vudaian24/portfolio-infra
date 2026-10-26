@@ -69,7 +69,7 @@ variable "site_alarm_name" {
 }
 
 variable "startup_time" {
-  description = "Local time the node group goes back to 1, HH:MM. Earlier than the hour the site must answer: a new node needs 5 to 7 minutes (ADR 0011: 06:45 for 07:00)."
+  description = "Local time the node group goes back to 1, HH:MM. Earlier than the hour the site must answer, as margin for a slow node join; the measured recovery is 82 seconds (ADR 0011: 06:45 for 07:00)."
   type        = string
   default     = "06:45"
 

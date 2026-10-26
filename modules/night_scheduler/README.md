@@ -2,14 +2,14 @@
 
 Scales the EKS managed node group to 0 overnight and back to 1 in the morning. Design and the measurements behind it: [ADR 0011](../../../docs/adr/0011-scheduled-night-shutdown-of-the-node.md).
 
-Saves the node, its public IPv4 address and its root volume, about **0.40 USD a day** for a 23:00 to 07:00 window. The EKS control plane and the ALB are billed for existing and keep running, so roughly 91 USD a month is untouched. **The site returns 503 for the whole window.**
+Saves the node, its public IPv4 address and its root volume, about **0.39 USD a day** for the 23:00 to 06:45 window. The EKS control plane and the ALB are billed for existing and keep running, so roughly 91 USD a month is untouched. **The site returns 503 for the whole window.**
 
 ## What it creates
 
 | Resource | Notes |
 | --- | --- |
 | `aws_ssm_parameter.enabled` | The off switch, created with `"false"`. `lifecycle.ignore_changes` keeps Terraform out of it; flip it with the AWS CLI. |
-| `aws_lambda_function.night_scheduler` | `lambda/handler.py`, Python 3.13 on arm64, 128 MB, zipped by `archive_file` at plan time. `reserved_concurrent_executions = 1`. |
+| `aws_lambda_function.night_scheduler` | `lambda/handler.py`, Python 3.13 on arm64, 128 MB, zipped by `archive_file` at plan time. No reserved concurrency: the account's whole quota is 10 and AWS rejects a reservation that leaves fewer than 10 unreserved. |
 | `aws_iam_role.lambda` + policy | `eks:DescribeNodegroup` and `eks:UpdateNodegroupConfig` on this node group only, `ssm:GetParameter` on the flag, its own log group, and the two alarm-action calls when `site_alarm_name` is set. |
 | `aws_cloudwatch_log_group.lambda` | Created here so retention is set from the first run. |
 | `aws_scheduler_schedule.reconcile` | `cron(0/15 * * * ? *)` in `timezone`, flexible window `OFF`, invoking the Lambda through its own role. |
@@ -28,7 +28,7 @@ The loop leaves the node group alone unless its status is `ACTIVE`, so it never 
 
 - The node group must allow `min_size = 0`, and Terraform must ignore `desired_size`, or the next apply fights the Lambda. The `compute` module takes `node_min_size` for this.
 - `startup_time` and `shutdown_time` must land on a multiple of `reconcile_interval_minutes`, or the loop never runs at that exact minute. The defaults, 06:45 and 23:00 with a 15-minute interval, do.
-- `startup_time` is deliberately earlier than the hour the site must answer: a new node needs 5 to 7 minutes before the pods are ready and the ALB has a healthy target.
+- `startup_time` is deliberately earlier than the hour the site must answer. Measured on 2026-10-26, a replacement node is launched, joined, running the pod and `healthy` on the ALB 82 seconds after the loop decides to scale up (ADR 0011, Consequences). The 15 minutes the defaults leave are margin for a slow join or a failed image pull, not the expected cost.
 
 ## Applying it the first time
 

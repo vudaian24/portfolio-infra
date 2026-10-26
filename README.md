@@ -65,6 +65,8 @@ terraform apply iam.tfplan
 rm -f iam.tfplan
 ```
 
+The same applies to anything in `modules/night_scheduler`, for a different reason: the apply role's allow-list covers EKS, the network, ECR, SSM, ACM, Budgets and the state bucket, but not CloudWatch alarms, SNS, Lambda or EventBridge Scheduler. A change there passes the plan job and then fails the apply job with a raw `AccessDenied`, after someone has already approved it. Apply those from a laptop too. Widening the apply role would fix it, at the cost of a much broader CI role for the few weeks the stack has left.
+
 `terraform plan` here needs `CLOUDFLARE_API_TOKEN` in the environment. Without it the run still writes a plan file, but one that only fails at apply time, so export the token first.
 
 Note that a plan can list an `aws_iam_role_policy` as changed when nothing in it changed: a policy document that reads an attribute of a resource being updated is deferred to apply time, and Terraform reports the policy as in-place. Read the diff before applying rather than trusting the resource type.

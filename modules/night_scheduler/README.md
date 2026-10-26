@@ -1,6 +1,6 @@
 # night_scheduler
 
-Scales the EKS managed node group to 0 overnight and back to 1 in the morning. Design and the measurements behind it: [ADR 0011](../../../docs/adr/0011-scheduled-night-shutdown-of-the-node.md).
+Scales the EKS managed node group to 0 overnight and back to 1 in the morning. Design and the measurements behind it: ADR 0011 (workspace `docs/adr/0011-scheduled-night-shutdown-of-the-node.md`).
 
 Saves the node, its public IPv4 address and its root volume, about **0.39 USD a day** for the 23:00 to 06:45 window. The EKS control plane and the ALB are billed for existing and keep running, so roughly 91 USD a month is untouched. **The site returns 503 for the whole window.**
 
@@ -10,11 +10,12 @@ Saves the node, its public IPv4 address and its root volume, about **0.39 USD a 
 | --- | --- |
 | `aws_ssm_parameter.enabled` | The off switch, created with `"false"`. `lifecycle.ignore_changes` keeps Terraform out of it; flip it with the AWS CLI. |
 | `aws_lambda_function.night_scheduler` | `lambda/handler.py`, Python 3.13 on arm64, 128 MB, zipped by `archive_file` at plan time. No reserved concurrency: the account's whole quota is 10 and AWS rejects a reservation that leaves fewer than 10 unreserved. |
-| `aws_iam_role.lambda` + policy | `eks:DescribeNodegroup` and `eks:UpdateNodegroupConfig` on this node group only, `ssm:GetParameter` on the flag, its own log group, and the two alarm-action calls when `site_alarm_name` is set. |
+| `aws_iam_role.lambda` + policy | `eks:DescribeNodegroup` and `eks:UpdateNodegroupConfig` on this node group only, `ssm:GetParameter` on the flag, its own log group, and the two alarm-action calls when `node_asg_name` is set. |
 | `aws_cloudwatch_log_group.lambda` | Created here so retention is set from the first run. |
 | `aws_scheduler_schedule.reconcile` | `cron(0/15 * * * ? *)` in `timezone`, flexible window `OFF`, invoking the Lambda through its own role. |
 | `aws_sns_topic.alerts` + email subscription | The subscription must be confirmed once from the inbox, or no mail arrives. |
 | `aws_cloudwatch_metric_alarm.lambda_errors` | Two 15-minute periods with an error. The loop silently dying is what leaves the site down. |
+| `aws_cloudwatch_metric_alarm.node_down` | `AWS/AutoScaling` `GroupInServiceInstances < 1` on the node group's ASG, two 5-minute periods, created when `node_asg_name` is set. Catches the loop succeeding and the node still not coming back. The Lambda disables its actions inside the window and enables them at the 06:45 tick, because an empty node group is correct at night. ALB `HealthyHostCount` would be closer to the user's experience, but it is published only per target group, and the target group belongs to the Load Balancer Controller: the 443 listener's default action is a fixed response and the routing lives in a listener rule, so Terraform cannot name it. |
 
 ## Why a reconcile loop
 
@@ -51,7 +52,7 @@ Run it by hand to test a cycle during office hours:
 aws lambda invoke --function-name portfolio-prod-night-scheduler /dev/stdout
 ```
 
-See [runbooks/cluster-operations.md](../../../docs/runbooks/cluster-operations.md) for what to check after a cycle.
+See runbooks/cluster-operations.md (workspace `docs/runbooks/cluster-operations.md`) for what to check after a cycle.
 
 ## Notes
 

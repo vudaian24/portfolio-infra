@@ -1,6 +1,6 @@
 # AGENTS.md — portfolio-infra
 
-Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github.com/vudaian24/portfolio-infra. Migration design and cross-repo rules live in the parent `../docs/`; this file covers this repo only.
+Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github.com/vudaian24/portfolio-infra. Migration design and cross-repo rules live in the private `portfolio` workspace repository under `docs/`, which is not part of this clone; this file covers this repo only.
 
 ## Versions (verified in files)
 
@@ -65,6 +65,6 @@ Permissions `contents: read`; OIDC `id-token: write` only in the plan and apply 
 - This repo is also checked out as a submodule of the `portfolio` workspace repo. Push changes here first; the workspace records the new commit afterwards.
 - Commit on `main` and push it directly. Do not open pull requests.
 
-## Parent docs
+## Workspace docs
 
-AWS architecture (Cloudflare proxy, ALB, one-node Amazon EKS cluster, Argo CD GitOps from `portfolio-gitops`, `envs/prod`, OIDC CI/CD) and runbooks are in `../docs/` (architecture, `adr/`, `runbooks/`). Read them before adding modules or changing envs.
+The AWS architecture, the ADRs and the runbooks live in the private `portfolio` workspace repository, under `docs/architecture/`, `docs/adr/` and `docs/runbooks/`. They are the source of truth and are deliberately not repeated here, so a path to them resolves only inside that workspace. Read them before adding a module or changing `envs/`; record a decision as an ADR there, not as prose here.

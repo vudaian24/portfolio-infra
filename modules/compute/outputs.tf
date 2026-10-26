@@ -27,3 +27,8 @@ output "node_group_name" {
   description = "Name of the managed node group."
   value       = aws_eks_node_group.default.node_group_name
 }
+
+output "node_group_asg_name" {
+  description = "Name of the Auto Scaling group EKS created for the managed node group. EKS publishes AWS/AutoScaling group metrics for it, which is how the night shutdown alarms on an empty node group."
+  value       = one(aws_eks_node_group.default.resources[0].autoscaling_groups[*].name)
+}

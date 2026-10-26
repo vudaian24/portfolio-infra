@@ -62,8 +62,8 @@ variable "shutdown_time" {
   }
 }
 
-variable "site_alarm_name" {
-  description = "Alarm whose actions the loop turns off inside the window, because the site is meant to be down then. null leaves alarm actions alone."
+variable "node_asg_name" {
+  description = "Auto Scaling group of the managed node group. When set, the module alarms on it having no instance in service, and the loop mutes that alarm inside the window because the node is meant to be gone then. null skips the alarm."
   type        = string
   default     = null
 }

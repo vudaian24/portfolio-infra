@@ -1,6 +1,6 @@
 # compute
 
-The EKS cluster `portfolio-prod` (Kubernetes 1.36) with its one managed node, EKS add-ons and the Pod Identity roles for the AWS Load Balancer Controller and External Secrets. Design: [aws-eks.md](../../../docs/architecture/aws-eks.md) (Layers, Node capacity), [ADR 0003](../../../docs/adr/0003-host-on-eks.md), [ADR 0004](../../../docs/adr/0004-terraform-single-environment.md).
+The EKS cluster `portfolio-prod` (Kubernetes 1.36) with its one managed node, EKS add-ons and the Pod Identity roles for the AWS Load Balancer Controller and External Secrets. Design: workspace `docs/architecture/aws-eks.md` (Layers, Node capacity), ADR 0003 (workspace `docs/adr/0003-host-on-eks.md`), ADR 0004 (workspace `docs/adr/0004-terraform-single-environment.md`).
 
 ## What it creates
 

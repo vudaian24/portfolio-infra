@@ -7,7 +7,8 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  function_name = "${var.name_prefix}-night-scheduler"
+  function_name   = "${var.name_prefix}-night-scheduler"
+  site_alarm_name = var.node_asg_name == null ? "" : "${var.name_prefix}-night-scheduler-node-down"
   node_group_arn = join("", [
     "arn:aws:eks:", data.aws_region.current.region, ":",
     data.aws_caller_identity.current.account_id, ":nodegroup/",
@@ -73,7 +74,7 @@ data "aws_iam_policy_document" "lambda" {
   }
 
   dynamic "statement" {
-    for_each = var.site_alarm_name == null ? [] : [var.site_alarm_name]
+    for_each = local.site_alarm_name == "" ? [] : [local.site_alarm_name]
 
     content {
       sid     = "FollowTheWindowWithTheSiteAlarm"
@@ -126,7 +127,7 @@ resource "aws_lambda_function" "night_scheduler" {
       SHUTDOWN_TIME   = var.shutdown_time
       STARTUP_TIME    = var.startup_time
       FLAG_PARAMETER  = aws_ssm_parameter.enabled.name
-      SITE_ALARM_NAME = var.site_alarm_name == null ? "" : var.site_alarm_name
+      SITE_ALARM_NAME = local.site_alarm_name
     }
   }
 
@@ -230,6 +231,39 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 
   dimensions = {
     FunctionName = aws_lambda_function.night_scheduler.function_name
+  }
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+}
+
+# The loop can succeed and still leave the site down, so alarm on the effect as
+# well as on the Lambda. ALB HealthyHostCount would be the closer signal, but it
+# is only published per target group, and the target group belongs to the AWS
+# Load Balancer Controller: the 443 listener's default action is a fixed
+# response and the routing lives in a listener rule, so Terraform cannot name it.
+# The node group's Auto Scaling group is the part this module actually moves, and
+# EKS publishes AWS/AutoScaling group metrics for it.
+#
+# Two 5-minute periods, so the ~82 s morning scale-up does not trip it. The loop
+# disables these actions inside the window, where an empty node group is correct,
+# and enables them again at the 06:45 tick.
+resource "aws_cloudwatch_metric_alarm" "node_down" {
+  count = var.node_asg_name == null ? 0 : 1
+
+  alarm_name          = local.site_alarm_name
+  alarm_description   = "The node group has no instance in service outside the night window; the site is down (ADR 0011)."
+  namespace           = "AWS/AutoScaling"
+  metric_name         = "GroupInServiceInstances"
+  statistic           = "Minimum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 1
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "missing"
+
+  dimensions = {
+    AutoScalingGroupName = var.node_asg_name
   }
 
   alarm_actions = [aws_sns_topic.alerts.arn]

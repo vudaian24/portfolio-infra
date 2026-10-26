@@ -154,6 +154,7 @@ module "night_scheduler" {
   node_group_name     = module.compute.node_group_name
   flag_parameter_name = "${local.secrets_path_prefix}/night-shutdown-enabled"
   alert_email         = var.budget_email
+  node_asg_name       = module.compute.node_group_asg_name
 
   shutdown_time = var.night_shutdown_start
   startup_time  = var.night_shutdown_end

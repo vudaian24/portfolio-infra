@@ -3,7 +3,7 @@
 SSM SecureString parameters under a path prefix (`/portfolio/prod/*`), each created with a placeholder value.
 
 - `value_wo` (write-only) holds the placeholder. Write-only values are never stored in state, and the provider does not read them back.
-- `value_wo_version` is bumped only to write a new placeholder. Real values are set with the AWS CLI, see [runbooks/secrets.md](../../../docs/runbooks/secrets.md). Changing `value_wo_version` would overwrite the real value with the placeholder, so do not bump it.
+- `value_wo_version` is bumped only to write a new placeholder. Real values are set with the AWS CLI, see runbooks/secrets.md (workspace `docs/runbooks/secrets.md`). Changing `value_wo_version` would overwrite the real value with the placeholder, so do not bump it.
 - Requires Terraform 1.11 or later.
 
 | Parameter | Content |

@@ -1,6 +1,6 @@
 # admin_access
 
-Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: [ADR 0009](../../../docs/adr/0009-hybrid-edge-with-cloudflare-tunnel-for-admin-uis.md), [edge-access.png](../../../docs/architecture/edge-access.png). The site keeps the ALB; this module does not touch it.
+Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: ADR 0009 (workspace `docs/adr/0009-hybrid-edge-with-cloudflare-tunnel-for-admin-uis.md`), workspace `docs/architecture/edge-access.png`. The site keeps the ALB; this module does not touch it.
 
 ## What it creates
 
@@ -21,7 +21,7 @@ Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider 
 
 ## After the apply
 
-1. Read the tunnel token in the Zero Trust dashboard (Networks, Tunnels, the tunnel, install connector) and store it with the AWS CLI as `/portfolio/prod/cloudflare-tunnel-token` ([secrets.md](../../../docs/runbooks/secrets.md)). Never paste it into a chat, a ticket or a file.
+1. Read the tunnel token in the Zero Trust dashboard (Networks, Tunnels, the tunnel, install connector) and store it with the AWS CLI as `/portfolio/prod/cloudflare-tunnel-token` (workspace `docs/runbooks/secrets.md`). Never paste it into a chat, a ticket or a file.
 2. Deploy `cloudflared` from `portfolio-gitops`. Until it runs, the hostnames show the Access login and then Cloudflare error 1033.
 
 `allowed_emails` is personal data. It comes from the `TF_ACCESS_ALLOWED_EMAILS` secret in CI and from `account.auto.tfvars` on a laptop, and the variable is sensitive, so plans do not print it.

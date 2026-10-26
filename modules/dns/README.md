@@ -1,6 +1,6 @@
 # dns
 
-Cloudflare records for the zone `anvd.io.vn` (provider `cloudflare/cloudflare` v5, not Route 53). Design: [aws-eks.md](../../../docs/architecture/aws-eks.md) (DNS, Edge), [dns-cutover.md](../../../docs/runbooks/dns-cutover.md).
+Cloudflare records for the zone `anvd.io.vn` (provider `cloudflare/cloudflare` v5, not Route 53). Design: workspace `docs/architecture/aws-eks.md` (DNS, Edge), workspace `docs/runbooks/dns-cutover.md`.
 
 ## What it creates
 
@@ -38,7 +38,7 @@ If a `portfolio` record exists again at cutover, for example after a rollback to
 3. Set `cutover = true` in `terraform.tfvars`. The plan must show one import and one update of `content` (and of `proxied`, if the record was DNS only like the Vercel one), nothing else.
 4. After the import, delete `imports.tf` in the same or the next commit.
 
-Rollback: follow [dns-cutover.md](../../../docs/runbooks/dns-cutover.md#rollback), which points the record back at the Vercel target. Setting `cutover = false` alone would make Terraform try to delete the record.
+Rollback: there is none off AWS. `content` is `var.alb_dns_name` and the module has no second target, so a failure is fixed inside AWS (workspace `docs/runbooks/rollback.md`). Setting `cutover = false` is not a rollback either: Terraform would delete the record and the name would stop resolving.
 
 ## Vercel CAA and ACM
 
@@ -50,7 +50,7 @@ To recover a certificate that failed this way, delete the record, then replace t
 
 These are zone-wide settings. They affect every host in `anvd.io.vn`, including Vercel after a rollback, so Terraform does not manage them (the design only scopes them to the portfolio hosts):
 
-- **SSL/TLS mode for `portfolio`: Full (strict).** The ALB only speaks HTTPS on 443 with a public certificate. Flexible or Full would fail or send traffic over HTTP. Use a Configuration Rule scoped to the hostname, as [cluster-operations.md](../../../docs/runbooks/cluster-operations.md#bootstrap-argo-cd-new-cluster-only) step 7 says, rather than the zone setting.
+- **SSL/TLS mode for `portfolio`: Full (strict).** The ALB only speaks HTTPS on 443 with a public certificate. Flexible or Full would fail or send traffic over HTTP. Use a Configuration Rule scoped to the hostname, as workspace `docs/runbooks/cluster-operations.md#bootstrap-argo-cd-new-cluster-only` step 7 says, rather than the zone setting.
 - **Always Use HTTPS:** check it is what you want for the zone. Changing it affects every host in the zone.
 
 ## Notes

@@ -15,3 +15,6 @@ terraform.rc
 # Account-specific values (see *.example files)
 backend.hcl
 account.auto.tfvars
+
+# Lambda zip built by archive_file at plan time (modules/night_scheduler)
+modules/*/build/

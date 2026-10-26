@@ -58,6 +58,16 @@ output "public_subnet_ids" {
   value       = module.network.public_subnet_ids
 }
 
+output "night_shutdown_flag_parameter" {
+  description = "SSM parameter that switches the night shutdown on. null while night_shutdown_enabled is false. Not secret."
+  value       = try(module.night_scheduler[0].flag_parameter_name, null)
+}
+
+output "night_shutdown_function_name" {
+  description = "Name of the night shutdown reconcile Lambda, for a manual test run. null while night_shutdown_enabled is false."
+  value       = try(module.night_scheduler[0].function_name, null)
+}
+
 output "tf_apply_role_arn" {
   description = "ARN of the apply role for portfolio-infra (GitHub secret AWS_TF_APPLY_ROLE_ARN, environment production)."
   value       = aws_iam_role.tf_apply.arn

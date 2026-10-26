@@ -101,10 +101,12 @@ resource "aws_eks_node_group" "default" {
   capacity_type   = "ON_DEMAND"
   release_version = var.node_release_version
 
-  # One node, one AZ. Desired = min = max, so the group never scales (ADR 0003).
+  # One node, one AZ, so the group never scales on its own (ADR 0003). min_size
+  # drops to 0 only for the scheduled night shutdown, which drives desired_size
+  # from outside Terraform (ADR 0011, modules/night_scheduler).
   scaling_config {
     desired_size = 1
-    min_size     = 1
+    min_size     = var.node_min_size
     max_size     = 1
   }
 
@@ -115,6 +117,12 @@ resource "aws_eks_node_group" "default" {
   launch_template {
     id      = aws_launch_template.node.id
     version = aws_launch_template.node.latest_version
+  }
+
+  # The night shutdown Lambda sets desired_size, so Terraform must not reset it
+  # on the next apply. It is 1 whenever that feature is off (ADR 0011).
+  lifecycle {
+    ignore_changes = [scaling_config[0].desired_size]
   }
 
   # The CNI and kube-proxy must exist before the node registers (bootstrap_self_managed_addons = false).

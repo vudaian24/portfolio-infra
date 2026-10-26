@@ -3,6 +3,12 @@ terraform {
   required_version = ">= 1.11"
 
   required_providers {
+    # Zips the night_scheduler Lambda at plan time (modules/night_scheduler).
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
+
     aws = {
       source  = "hashicorp/aws"
       version = "~> 6.0"

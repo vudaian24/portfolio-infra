@@ -70,6 +70,17 @@ variable "node_instance_type" {
   default     = "t4g.medium"
 }
 
+variable "node_min_size" {
+  description = "Minimum size of the node group. 0 is required for the scheduled night shutdown (ADR 0011); 1 otherwise, so nothing can scale the site to zero by accident."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = contains([0, 1], var.node_min_size)
+    error_message = "node_min_size must be 0 or 1; the group never holds more than one node."
+  }
+}
+
 variable "node_release_version" {
   description = "EKS AL2023 AMI release version of the node group, for example 1.36.x-YYYYMMDD. null lets EKS pick the recommended release at creation. Set it in terraform.tfvars to pin it; a bump is an apply, see docs/runbooks/cluster-operations.md."
   type        = string

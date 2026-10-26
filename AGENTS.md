@@ -6,14 +6,15 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 
 - Terraform 1.16.6 (`.terraform-version`). `required_version = ">= 1.11"` (write-only arguments on `aws_ssm_parameter` need 1.11; `use_lockfile` needs 1.10).
 - AWS provider `hashicorp/aws ~> 6.0`. Lock files `.terraform.lock.hcl` are committed; commit lock changes with provider changes.
+- Archive provider `hashicorp/archive ~> 2.4` (only `envs/prod`): zips the `night_scheduler` Lambda at plan time. `terraform apply <planfile>` does not re-run data sources, so CI carries that zip with the plan artifact.
 - Cloudflare provider `cloudflare/cloudflare ~> 5.0` (only `envs/prod`, v5 names: `cloudflare_dns_record`, `cloudflare_ruleset`, `data "cloudflare_zone"` with `filter`, `cloudflare_zero_trust_tunnel_cloudflared`, `cloudflare_zero_trust_tunnel_cloudflared_config`, `cloudflare_zero_trust_access_application`, `cloudflare_zero_trust_access_policy`, `cloudflare_zero_trust_access_identity_provider`). Token from `CLOUDFLARE_API_TOKEN`, never in a file.
 - TFLint with `.tflint.hcl`: `terraform` plugin (recommended preset) and `aws` plugin 0.49.0. CI uses TFLint v0.64.0.
 
 ## Current state
 
 - `bootstrap/`: implemented. State bucket `portfolio-tfstate-<account_id>` (versioning, SSE-S3, `prevent_destroy`). Run once per account.
-- `envs/prod/`: the only environment, applied; the stack must be destroyed by 2026-12-01. It holds `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), `admin_access` (Cloudflare Tunnel and Access for the admin UIs, ADR 0009), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Switches in `terraform.tfvars`: `alb_ready` and `cutover` (both `true`), `admin_access_enabled` (`false` until the Zero Trust organization and the token permissions exist). `public_endpoint = false`: the EKS API is private, and admins reach it with `scripts/eks-tunnel.sh` (Session Manager); `true` is break-glass only.
-- Terraform uses only the AWS and Cloudflare providers and never manages in-cluster resources (Argo CD, from `portfolio-gitops`).
+- `envs/prod/`: the only environment, applied; the stack must be destroyed by 2026-12-01. It holds `network`, `secrets`, `compute` (EKS 1.36, one managed node, add-ons, Pod Identity), `dns` (Cloudflare v5), `admin_access` (Cloudflare Tunnel and Access for the admin UIs, ADR 0009), `night_scheduler` (scheduled night shutdown of the node group, ADR 0011), ACM, Budgets, ECR, the GitHub OIDC roles for portfolio-web and the Terraform plan and apply roles (`ci.tf`). Switches in `terraform.tfvars`: `alb_ready` and `cutover` (both `true`), `admin_access_enabled` (`false` until the Zero Trust organization and the token permissions exist), `night_shutdown_enabled` (`false`; even when true the SSM flag `/portfolio/prod/night-shutdown-enabled` must be set by hand to start it). `public_endpoint = false`: the EKS API is private, and admins reach it with `scripts/eks-tunnel.sh` (Session Manager); `true` is break-glass only.
+- Terraform calls only the AWS and Cloudflare APIs (the archive provider only zips a local file) and never manages in-cluster resources (Argo CD, from `portfolio-gitops`).
 - Design decisions and deviations are in `README.md` and each module README. The first apply runs from a laptop (`README.md`, First apply).
 
 ## Commands
@@ -48,7 +49,7 @@ Permissions `contents: read`; OIDC `id-token: write` only in the plan and apply 
 
 - `fmt`, `validate` (matrix `bootstrap`, `envs/prod`, no credentials), `tflint`, `trivy`.
 - `plan` (push to main and weekly schedule, only when the repository variable `TF_CI_ENABLED` is `true`): assumes the plan role (trusts `ref:refs/heads/main` only), stops if the plan changes IAM or EKS access entries (those are applied from a laptop), and saves the plan encrypted with `TF_PLAN_PASSPHRASE` as a one-day artifact. No environment.
-- `apply` (push to main): environment `production` (reviewer approval), applies the saved plan only. Concurrency group never cancels.
+- `apply` (push to main): environment `production` (reviewer approval), applies the saved plan only. Concurrency group never cancels. The plan artifact also carries `modules/night_scheduler/build/*.zip`, because the saved plan points at that file and apply does not rebuild it.
 - Secrets and variable names: see `README.md`.
 
 `.github/workflows/notify-workspace.yml`: on push to `main`, sends `repository_dispatch` (`submodule-updated`) to the private workspace repo `portfolio`, which then bumps its submodule pointer. Uses a GitHub App token (repository variable `WORKSPACE_SYNC_APP_CLIENT_ID`, repository secret `WORKSPACE_SYNC_APP_PRIVATE_KEY`); skipped while the variable is unset.

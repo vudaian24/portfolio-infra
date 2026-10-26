@@ -138,8 +138,25 @@ module "compute" {
   public_endpoint     = var.public_endpoint
   public_subnet_ids   = module.network.public_subnet_ids
 
+  node_min_size        = var.night_shutdown_enabled ? 0 : 1
   node_release_version = var.node_release_version
   secrets_path_prefix  = local.secrets_path_prefix
+}
+
+# Scales the node group to 0 overnight (ADR 0011). Creating the module does not
+# start it: the SSM flag it creates holds "false" until someone sets it to true.
+module "night_scheduler" {
+  source = "../../modules/night_scheduler"
+  count  = var.night_shutdown_enabled ? 1 : 0
+
+  name_prefix         = local.name_prefix
+  cluster_name        = module.compute.cluster_name
+  node_group_name     = module.compute.node_group_name
+  flag_parameter_name = "${local.secrets_path_prefix}/night-shutdown-enabled"
+  alert_email         = var.budget_email
+
+  shutdown_time = var.night_shutdown_start
+  startup_time  = var.night_shutdown_end
 }
 
 # The ALB is created by the AWS Load Balancer Controller from the Ingress, so it is looked up,

@@ -138,6 +138,24 @@ variable "grafana_hostname" {
   default     = "grafana.anvd.io.vn"
 }
 
+variable "night_shutdown_enabled" {
+  description = "Create the scheduled night shutdown of the node group (ADR 0011, modules/night_scheduler). Creating it does not start it: the SSM flag it creates holds \"false\". Set in terraform.tfvars."
+  type        = bool
+  default     = false
+}
+
+variable "night_shutdown_end" {
+  description = "Local time the node group goes back to 1, HH:MM in Asia/Ho_Chi_Minh. Earlier than the hour the site must answer: a node needs 5 to 7 minutes."
+  type        = string
+  default     = "06:45"
+}
+
+variable "night_shutdown_start" {
+  description = "Local time the node group goes to 0, HH:MM in Asia/Ho_Chi_Minh. The site returns 503 from then until night_shutdown_end."
+  type        = string
+  default     = "23:00"
+}
+
 variable "node_release_version" {
   description = "AL2023 AMI release version of the node group, pinned in terraform.tfvars. null lets EKS choose at creation."
   type        = string

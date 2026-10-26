@@ -15,3 +15,10 @@ node_release_version = "1.36.5-20261019"
 # (modules/admin_access/README.md). The email list is in account.auto.tfvars and a secret.
 admin_access_enabled = false
 # access_team_name   = "<team>"
+
+# Scheduled night shutdown of the node group (ADR 0011). Creating it does not start it: the
+# SSM parameter /portfolio/prod/night-shutdown-enabled holds "false" until it is set by hand
+# (modules/night_scheduler/README.md). The site returns 503 for the whole window.
+night_shutdown_enabled = false
+night_shutdown_start   = "23:00"
+night_shutdown_end     = "06:45"

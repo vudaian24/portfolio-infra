@@ -10,6 +10,7 @@ Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a per
 - **Cluster** (`modules/compute`): EKS 1.36 (standard support), private API endpoint only (public endpoint for `admin_cidrs` as break-glass), one managed node (t4g.medium, AL2023 arm64, 20 GB gp3, IMDSv2 hop limit 1), EKS add-ons, Pod Identity roles for the AWS Load Balancer Controller and External Secrets.
 - **DNS** (`modules/dns`, Cloudflare provider v5): ACM validation records, the production hostname `portfolio`, one contact-form rate limit rule.
 - **Admin access** (`modules/admin_access`, off until `admin_access_enabled = true`): Cloudflare Tunnel, Access apps and policy, and the `argocd` and `grafana` records for the admin UIs (ADR 0009). The site keeps the ALB.
+- **Night shutdown** (`modules/night_scheduler`, off until `night_shutdown_enabled = true`): an EventBridge schedule and a Lambda that hold the node group at 0 between 23:00 and 06:45 ICT (ADR 0011). The site is down for that window. Creating it does not start it; an SSM parameter does.
 - **Secrets:** SSM SecureString placeholders (`modules/secrets`). Values are set with the AWS CLI (`docs/runbooks/secrets.md`).
 - **Registry and identity:** ECR `portfolio-prod-web`, GitHub OIDC roles for portfolio-web (deploy) and portfolio-infra (plan and apply), ACM certificate, AWS Budgets (140 USD).
 
@@ -24,6 +25,7 @@ modules/network/      VPC, subnets, ALB security group
 modules/compute/      EKS cluster, node group, add-ons, Pod Identity (see its README)
 modules/dns/          Cloudflare records and rate limit (see its README)
 modules/admin_access/ Cloudflare Tunnel and Access for Argo CD and Grafana (see its README)
+modules/night_scheduler/ scheduled night shutdown of the node group (see its README)
 modules/secrets/      SSM SecureString placeholders
 scripts/eks-tunnel.sh kubectl access through Session Manager (no IP allow-list)
 .github/workflows/terraform-ci.yml   fmt, validate, TFLint, trivy, plan, apply

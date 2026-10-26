@@ -18,3 +18,6 @@ account.auto.tfvars
 
 # Lambda zip built by archive_file at plan time (modules/night_scheduler)
 modules/*/build/
+
+# macOS
+.DS_Store

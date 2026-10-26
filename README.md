@@ -52,6 +52,23 @@ The workflow cannot assume roles that do not exist yet, so the first apply runs 
 
 After that, changes go through `main`. The plan job runs on push, the apply job waits for approval in the `production` environment and applies the saved plan.
 
+## IAM changes (human, laptop)
+
+The plan job fails on purpose when a plan touches `aws_iam_*` or `aws_eks_access_*`, because the apply role may not change IAM or access entries (ADR 0002, ADR 0008). The error names the addresses. Apply those from a laptop as the admin, then push again so CI is green:
+
+```sh
+aws login --region ap-southeast-1          # docs/runbooks/aws-login.md in the workspace
+cd envs/prod
+terraform init -backend-config=backend.hcl
+terraform plan -out=iam.tfplan             # read it; it must match the CI plan
+terraform apply iam.tfplan
+rm -f iam.tfplan
+```
+
+`terraform plan` here needs `CLOUDFLARE_API_TOKEN` in the environment. Without it the run still writes a plan file, but one that only fails at apply time, so export the token first.
+
+Note that a plan can list an `aws_iam_role_policy` as changed when nothing in it changed: a policy document that reads an attribute of a resource being updated is deferred to apply time, and Terraform reports the policy as in-place. Read the diff before applying rather than trusting the resource type.
+
 ## GitHub settings for portfolio-infra
 
 Set these in the repository settings. Values are secrets (not variables) so that the logs mask them.

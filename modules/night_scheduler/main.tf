@@ -112,8 +112,11 @@ resource "aws_lambda_function" "night_scheduler" {
   filename         = data.archive_file.handler.output_path
   source_code_hash = data.archive_file.handler.output_base64sha256
 
-  # One run every 15 minutes; concurrent runs would only race each other.
-  reserved_concurrent_executions = 1
+  # No reservation. This account's whole Lambda concurrency quota is 10, and AWS
+  # rejects any reservation that leaves UnreservedConcurrentExecution below 10.
+  # Nothing is lost: the timeout is 30 s against a 15-minute schedule, so runs
+  # cannot overlap, and a duplicate delivery finds the node group UPDATING and
+  # skips it.
 
   environment {
     variables = {

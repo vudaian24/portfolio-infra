@@ -25,7 +25,7 @@ variable "flag_parameter_name" {
 }
 
 variable "log_retention_days" {
-  description = "Retention of the Lambda log group. The stack is destroyed by 2026-12-01, so a week is enough to debug a night."
+  description = "Retention of the Lambda log group. The stack is destroyed on 2026-12-09, so a week is enough to debug a night."
   type        = number
   default     = 7
 }

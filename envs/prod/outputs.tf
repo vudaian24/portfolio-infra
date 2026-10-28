@@ -1,5 +1,5 @@
 output "access_aud_tags" {
-  description = "Cloudflare Access AUD tags of the admin apps, for Grafana auth.jwt in portfolio-gitops. Empty while admin_access_enabled is false. Not secret."
+  description = "Cloudflare Access AUD tags of the admin apps, for origin JWT checks in portfolio-gitops. Empty while admin_access_enabled is false. Not secret."
   value       = try(module.admin_access[0].access_aud_tags, {})
 }
 

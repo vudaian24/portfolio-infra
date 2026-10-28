@@ -10,7 +10,6 @@ SSM SecureString parameters under a path prefix (`/portfolio/prod/*`), each crea
 | --- | --- |
 | `/portfolio/prod/telegram-bot-token` | Telegram bot token |
 | `/portfolio/prod/telegram-chat-id` | Telegram chat ID |
-| `/portfolio/prod/grafana-admin-password` | Grafana admin password |
 | `/portfolio/prod/grafana-cloud-metrics-user` | Grafana Cloud metrics instance ID, the `remote_write` username |
 | `/portfolio/prod/grafana-cloud-metrics-token` | Grafana Cloud access policy token with `metrics:write` only, the `remote_write` password |
 | `/portfolio/prod/cloudflare-tunnel-token` | Token of the admin Cloudflare Tunnel, for `cloudflared`. Only when `admin_access_enabled` is true. |

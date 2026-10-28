@@ -1,6 +1,6 @@
 # admin_access
 
-Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: ADR 0009 (workspace `docs/adr/0009-admin-uis-through-cloudflare-tunnel.md`), workspace `docs/architecture/edge-access.png`. The site keeps the ALB; this module does not touch it.
+Admin UIs (today Argo CD; Grafana moved to Grafana Cloud, ADR 0019) through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: ADR 0009 (workspace `docs/adr/0009-admin-uis-through-cloudflare-tunnel.md`), workspace `docs/architecture/edge-access.png`. The site keeps the ALB; this module does not touch it.
 
 ## What it creates
 
@@ -8,7 +8,7 @@ Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider 
 | --- | --- |
 | `cloudflare_zero_trust_access_identity_provider.otp` | One-time PIN by email, the only login method of the apps. Viewers need no identity provider account. |
 | `cloudflare_zero_trust_access_policy.allowed_emails` | Reusable allow policy: the `allowed_emails` list, session `session_duration` (8 h). |
-| `cloudflare_zero_trust_access_application.app[*]` | One self-hosted app per entry in `apps`, using the policy above. Its `aud` tag goes to the tunnel config and to Grafana `auth.jwt`. |
+| `cloudflare_zero_trust_access_application.app[*]` | One self-hosted app per entry in `apps`, using the policy above. Its `aud` tag goes to the tunnel config and to any origin that checks the Access JWT. |
 | `cloudflare_zero_trust_tunnel_cloudflared.admin` | Remotely managed tunnel (`config_src = "cloudflare"`), no `tunnel_secret` in Terraform. |
 | `cloudflare_zero_trust_tunnel_cloudflared_config.admin` | One ingress rule per app to its ClusterIP service, each with `access.required` and the app's AUD tag, then a catch-all `http_status:404`. |
 | `cloudflare_dns_record.app[*]` | Proxied CNAME per hostname to `<tunnel-id>.cfargotunnel.com`. |

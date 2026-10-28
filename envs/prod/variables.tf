@@ -1,5 +1,5 @@
 variable "access_allowed_emails" {
-  description = "Emails that may log in to Argo CD and Grafana through Cloudflare Access (owner and viewers). Personal data: set in account.auto.tfvars, never committed. Used only when admin_access_enabled is true."
+  description = "Emails that may log in to Argo CD through Cloudflare Access (owner and viewers). Personal data: set in account.auto.tfvars, never committed. Used only when admin_access_enabled is true."
   type        = list(string)
   sensitive   = true
   default     = []
@@ -22,7 +22,7 @@ variable "access_team_name" {
 }
 
 variable "admin_access_enabled" {
-  description = "Publish Argo CD and Grafana through Cloudflare Access and a Tunnel (ADR 0009, modules/admin_access). Set in terraform.tfvars."
+  description = "Publish Argo CD through Cloudflare Access and a Tunnel (ADR 0009, modules/admin_access). Set in terraform.tfvars."
   type        = bool
   default     = false
 }
@@ -113,12 +113,6 @@ variable "github_oidc_subject_prefix" {
     condition     = can(regex("^repo:[A-Za-z0-9_.-]+@[0-9]+/[A-Za-z0-9_.-]+@[0-9]+$", var.github_oidc_subject_prefix))
     error_message = "github_oidc_subject_prefix must look like repo:OWNER@OWNER_ID/REPO@REPO_ID."
   }
-}
-
-variable "grafana_hostname" {
-  description = "Hostname of the Grafana UI behind Cloudflare Access."
-  type        = string
-  default     = "grafana.anvd.io.vn"
 }
 
 variable "night_shutdown_enabled" {

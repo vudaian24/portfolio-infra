@@ -1,5 +1,5 @@
 output "access_aud_tags" {
-  description = "Access application audience (AUD) tags, keyed by app. Grafana auth.jwt checks the grafana one. Not secret."
+  description = "Access application audience (AUD) tags, keyed by app, for an origin that checks the Access JWT. Not secret."
   value       = { for key, app in cloudflare_zero_trust_access_application.app : key => app.aud }
 }
 

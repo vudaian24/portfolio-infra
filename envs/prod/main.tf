@@ -12,9 +12,9 @@ module "secrets" {
   path_prefix = "/${var.project}/${var.environment}"
   parameter_names = setunion(
     [
-      "telegram-bot-token", "telegram-chat-id", "grafana-admin-password",
+      "telegram-bot-token", "telegram-chat-id",
       # Prometheus remote_write to Grafana Cloud: the metrics instance ID and an
-      # access policy token with metrics:write only (workspace ADR 0016).
+      # access policy token with metrics:write only (workspace ADR 0019).
       "grafana-cloud-metrics-user", "grafana-cloud-metrics-token",
     ],
     var.admin_access_enabled ? ["cloudflare-tunnel-token"] : [],
@@ -192,8 +192,9 @@ module "dns" {
   production_hostname = var.production_hostname
 }
 
-# Argo CD and Grafana through Cloudflare Access and a Tunnel (ADR 0009). Off until the Zero Trust
-# organization exists and the Cloudflare tokens have the account permissions (modules/admin_access).
+# Argo CD through Cloudflare Access and a Tunnel (ADR 0009); Grafana is in Grafana Cloud (ADR 0019).
+# Off until the Zero Trust organization exists and the Cloudflare tokens have the account
+# permissions (modules/admin_access).
 module "admin_access" {
   source = "../../modules/admin_access"
   count  = var.admin_access_enabled ? 1 : 0
@@ -208,10 +209,6 @@ module "admin_access" {
     argocd = {
       hostname = var.argocd_hostname
       service  = "http://argocd-server.argocd:80"
-    }
-    grafana = {
-      hostname = var.grafana_hostname
-      service  = "http://kube-prometheus-stack-grafana.monitoring:80"
     }
   }
 }

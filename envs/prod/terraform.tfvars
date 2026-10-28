@@ -10,7 +10,7 @@ public_endpoint = false
 
 node_release_version = "1.36.5-20261019"
 
-# Argo CD and Grafana through Cloudflare Access and a Tunnel (ADR 0009). Turn on only after the
+# Argo CD through Cloudflare Access and a Tunnel (ADR 0009). Turn on only after the
 # Zero Trust organization exists and both Cloudflare tokens have the account permissions
 # (modules/admin_access/README.md). The email list is in account.auto.tfvars and a secret.
 admin_access_enabled = false

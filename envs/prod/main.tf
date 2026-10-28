@@ -11,7 +11,12 @@ module "secrets" {
 
   path_prefix = "/${var.project}/${var.environment}"
   parameter_names = setunion(
-    ["telegram-bot-token", "telegram-chat-id", "grafana-admin-password"],
+    [
+      "telegram-bot-token", "telegram-chat-id", "grafana-admin-password",
+      # Prometheus remote_write to Grafana Cloud: the metrics instance ID and an
+      # access policy token with metrics:write only (workspace ADR 0016).
+      "grafana-cloud-metrics-user", "grafana-cloud-metrics-token",
+    ],
     var.admin_access_enabled ? ["cloudflare-tunnel-token"] : [],
   )
 }

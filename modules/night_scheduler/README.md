@@ -1,6 +1,6 @@
 # night_scheduler
 
-Scales the EKS managed node group to 0 overnight and back to 1 in the morning. Design and the measurements behind it: ADR 0011 (workspace `docs/adr/0011-scheduled-night-shutdown-of-the-node.md`).
+Scales the EKS managed node group to 0 overnight and back to 1 in the morning. Design and the measurements behind it: ADR 0011 (workspace `docs/adr/0011-night-shutdown-of-the-node.md`); the alarms: ADR 0018 (`docs/adr/0018-alerts-and-budgets.md`).
 
 Saves the node, its public IPv4 address and its root volume, about **0.39 USD a day** for the 23:00 to 06:45 window. The EKS control plane and the ALB are billed for existing and keep running, so roughly 91 USD a month is untouched. **The site returns 503 for the whole window.**
 

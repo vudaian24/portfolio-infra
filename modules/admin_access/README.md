@@ -1,6 +1,6 @@
 # admin_access
 
-Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: ADR 0009 (workspace `docs/adr/0009-hybrid-edge-with-cloudflare-tunnel-for-admin-uis.md`), workspace `docs/architecture/edge-access.png`. The site keeps the ALB; this module does not touch it.
+Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: ADR 0009 (workspace `docs/adr/0009-admin-uis-through-cloudflare-tunnel.md`), workspace `docs/architecture/edge-access.png`. The site keeps the ALB; this module does not touch it.
 
 ## What it creates
 

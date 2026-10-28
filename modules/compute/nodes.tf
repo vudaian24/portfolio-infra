@@ -101,7 +101,7 @@ resource "aws_eks_node_group" "default" {
   capacity_type   = "ON_DEMAND"
   release_version = var.node_release_version
 
-  # One node, one AZ, so the group never scales on its own (ADR 0003). min_size
+  # One node at a time, so the group never scales on its own (ADR 0003). min_size
   # drops to 0 only for the scheduled night shutdown, which drives desired_size
   # from outside Terraform (ADR 0011, modules/night_scheduler).
   scaling_config {

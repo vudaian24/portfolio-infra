@@ -2,7 +2,7 @@
 
 Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a personal portfolio site. Region `ap-southeast-1`.
 
-**Status:** `bootstrap/` and `envs/prod` are applied. `alb_ready` and `cutover` are `true`, and `public_endpoint` is `false`: admins use the Session Manager tunnel. Terraform CI is on (`TF_CI_ENABLED`), so changes go through the plan and apply jobs. The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
+**Status:** `bootstrap/` and `envs/prod` are applied. `alb_ready` and `cutover` are `true`, and `public_endpoint` is `false`: admins use the Session Manager tunnel. CI runs static checks only; the owner plans and applies from a laptop (Plan and apply). The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
 
 ## What it manages
 
@@ -12,7 +12,7 @@ Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a per
 - **Admin access** (`modules/admin_access`, off until `admin_access_enabled = true`): Cloudflare Tunnel, Access apps and policy, and the `argocd` and `grafana` records for the admin UIs (ADR 0009). The site keeps the ALB.
 - **Night shutdown** (`modules/night_scheduler`, `night_shutdown_enabled = true` since 2026-10-26): an EventBridge schedule and a Lambda that hold the node group at 0 between 23:00 and 06:45 ICT (ADR 0011). The site is down for that window. Creating it does not start it; the SSM flag `/portfolio/prod/night-shutdown-enabled` does, and setting that flag to `false` stops further changes without raising a node that is already down.
 - **Secrets:** SSM SecureString placeholders (`modules/secrets`). Values are set with the AWS CLI (`docs/runbooks/secrets.md`).
-- **Registry and identity:** ECR `portfolio-prod-web`, GitHub OIDC roles for portfolio-web (deploy) and portfolio-infra (plan and apply), ACM certificate, AWS Budgets (140 USD).
+- **Registry and identity:** ECR `portfolio-prod-web`, GitHub OIDC role for portfolio-web (deploy), ACM certificate, AWS Budgets (140 USD).
 
 Terraform calls only the AWS and Cloudflare APIs. It never calls the Kubernetes API. In-cluster resources are deployed by Argo CD from `portfolio-gitops`.
 
@@ -20,7 +20,7 @@ Terraform calls only the AWS and Cloudflare APIs. It never calls the Kubernetes 
 
 ```text
 bootstrap/            S3 state bucket (run once per account). Its own state is in that bucket.
-envs/prod/            The only environment: wiring, ACM, Budgets, ECR, OIDC roles, Terraform CI roles
+envs/prod/            The only environment: wiring, ACM, Budgets, ECR, the portfolio-web OIDC role
 modules/network/      VPC, subnets, ALB security group
 modules/compute/      EKS cluster, node group, add-ons, Pod Identity (see its README)
 modules/dns/          Cloudflare records and rate limit (see its README)
@@ -28,7 +28,7 @@ modules/admin_access/ Cloudflare Tunnel and Access for Argo CD and Grafana (see 
 modules/night_scheduler/ scheduled night shutdown of the node group (see its README)
 modules/secrets/      SSM SecureString placeholders
 scripts/eks-tunnel.sh kubectl access through Session Manager (no IP allow-list)
-.github/workflows/terraform-ci.yml   fmt, validate, TFLint, trivy, plan, apply
+.github/workflows/terraform-ci.yml   fmt, validate, TFLint, trivy (no AWS credentials)
 .github/workflows/notify-workspace.yml  tells the workspace repo to record each push to main
 ```
 
@@ -41,31 +41,32 @@ tflint --init && tflint --recursive --config "$PWD/.tflint.hcl"
 trivy config --severity HIGH,CRITICAL --exit-code 1 --skip-dirs .terraform .
 ```
 
-## First apply (human, laptop)
+## Plan and apply (owner, laptop)
 
-The workflow cannot assume roles that do not exist yet, so the first apply runs from a laptop with `aws login` (see `docs/runbooks/aws-login.md`).
+CI only checks the code; it holds no AWS role and never plans or applies. Every apply, including the first and the destroy, runs from the owner's laptop after a plan the owner has read (workspace ADR 0013). Agents never apply.
 
-1. `bootstrap/`: create the state bucket as in `bootstrap/README.md`.
-2. `envs/prod/`: set `alb_ready` and `cutover` to `false` in `terraform.tfvars`, because the ALB does not exist yet (`modules/dns/README.md`). Copy `account.auto.tfvars.example` to `account.auto.tfvars` and fill in the values. Then `terraform init -backend-config=backend.hcl` and `terraform plan`. Apply by hand once: this creates the roles the workflow needs.
-3. Read the outputs `tf_plan_role_arn`, `tf_apply_role_arn`, `web_ci_role_arn`, `ecr_registry_host`, `cluster_name` and set the GitHub settings in the next section.
-4. Set `node_release_version` in `terraform.tfvars` if you want to pin the node AMI (see `docs/runbooks/cluster-operations.md`).
-
-After that, changes go through `main`. The plan job runs on push, the apply job waits for approval in the `production` environment and applies the saved plan.
-
-## IAM changes (human, laptop)
-
-The plan job fails on purpose when a plan touches `aws_iam_*` or `aws_eks_access_*`, because the apply role may not change IAM or access entries (ADR 0002, ADR 0008). The error names the addresses. Apply those from a laptop as the admin, then push again so CI is green:
+Apply only what is on `main`, so that `main` always describes what runs:
 
 ```sh
+git switch main && git pull --ff-only
+git status --short                         # must print nothing
 aws login --region ap-southeast-1          # docs/runbooks/aws-login.md in the workspace
+read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN
 cd envs/prod
 terraform init -backend-config=backend.hcl
-terraform plan -out=iam.tfplan             # read it; it must match the CI plan
-terraform apply iam.tfplan
-rm -f iam.tfplan
+terraform plan -out=prod.tfplan            # read it before applying
+terraform apply prod.tfplan
+rm -f prod.tfplan
 ```
 
-The same applies to anything in `modules/night_scheduler`, for a different reason: the apply role's allow-list covers EKS, the network, ECR, SSM, ACM, Budgets and the state bucket, but not CloudWatch alarms, SNS, Lambda or EventBridge Scheduler. A change there passes the plan job and then fails the apply job with a raw `AccessDenied`, after someone has already approved it. Apply those from a laptop too. Widening the apply role would fix it, at the cost of a much broader CI role for the few weeks the stack has left.
+The saved plan holds variable values and resource attributes; `*.tfplan` is git-ignored, and the file is deleted after the apply. There is no scheduled drift check: a plan that shows changes the code on `main` does not explain is drift, and is investigated before anything is applied.
+
+### First apply of a new account
+
+1. `bootstrap/`: create the state bucket as in `bootstrap/README.md`.
+2. `envs/prod/`: set `alb_ready` and `cutover` to `false` in `terraform.tfvars`, because the ALB does not exist yet (`modules/dns/README.md`). Copy `account.auto.tfvars.example` to `account.auto.tfvars` and fill in the values. Then plan and apply as above.
+3. Read the outputs `web_ci_role_arn`, `ecr_registry_host`, `cluster_name` and set the `portfolio-web` deploy settings (names in `portfolio-web/AGENTS.md`).
+4. Set `node_release_version` in `terraform.tfvars` if you want to pin the node AMI (see `docs/runbooks/cluster-operations.md`).
 
 `terraform plan` here needs `CLOUDFLARE_API_TOKEN` in the environment. Without it the run still writes a plan file, but one that only fails at apply time, so export the token first.
 
@@ -73,27 +74,9 @@ Note that a plan can list an `aws_iam_role_policy` as changed when nothing in it
 
 ## GitHub settings for portfolio-infra
 
-Set these in the repository settings. Values are secrets (not variables) so that the logs mask them.
+The Terraform CI jobs need no secrets. Only `notify-workspace.yml` uses settings: the repository variable `WORKSPACE_SYNC_APP_CLIENT_ID` and the repository secret `WORKSPACE_SYNC_APP_PRIVATE_KEY`.
 
-| Where | Name | Value |
-| --- | --- | --- |
-| Repository secret | `AWS_ACCOUNT_ID` | the 12-digit account ID |
-| Repository secret | `TF_STATE_BUCKET` | `portfolio-tfstate-<account>` (from `bootstrap`) |
-| Repository secret | `TF_BUDGET_EMAIL` | alert email |
-| Repository secret | `TF_ADMIN_PRINCIPAL_ARN` | admin role ARN |
-| Repository secret | `TF_ADMIN_CIDRS` | JSON list: `[]`, or for break-glass the admin IPs, for example `["203.0.113.10/32"]` |
-| Repository secret | `AWS_TF_PLAN_ROLE_ARN` | output `tf_plan_role_arn` |
-| Repository secret | `CLOUDFLARE_API_TOKEN_PLAN` | read-only Cloudflare token for the zone (data lookups). Read-only because the plan job has no environment. With `admin_access_enabled`, also Account: Cloudflare Tunnel, Access: Apps and Policies, and Access: Organizations, Identity Providers, and Groups, all Read. |
-| Repository secret | `TF_ACCESS_ALLOWED_EMAILS` | JSON list of the emails allowed through Cloudflare Access, for example `["owner@example.com"]`. Needed only with `admin_access_enabled`; `[]` when unset. |
-| Repository variable | `TF_CI_ENABLED` | `true` turns on the plan and apply jobs; leave it unset until the CI roles exist and every secret here is set |
-| Repository secret | `TF_PLAN_PASSPHRASE` | long random passphrase; the plan job encrypts the plan artifact with it (gpg, AES256) and the apply job decrypts it |
-| Environment `production` secret | `AWS_TF_APPLY_ROLE_ARN` | output `tf_apply_role_arn` |
-| Environment `production` secret | `CLOUDFLARE_API_TOKEN` | zone token for DNS and rulesets. With `admin_access_enabled`, also the three account permissions above as Edit. |
-| Environment `production` | Required reviewer | the owner; deployment branches: `main` only |
-
-`envs/prod` also needs `aws_account_id`, `tfstate_bucket_name`, `budget_email`, `admin_cidrs` and `admin_principal_arn`. CI passes them as `TF_VAR_*` from the secrets above (the plan job only; the apply job uses the saved plan).
-
-The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@90129616/portfolio-infra@1427185252:ref:refs/heads/main` for plan, and `...:environment:production` for apply.
+`envs/prod` reads `aws_account_id`, `budget_email`, `admin_cidrs`, `admin_principal_arn` and `access_allowed_emails` from `account.auto.tfvars` on the laptop (template: `account.auto.tfvars.example`).
 
 ## Cloudflare checks before `alb_ready`
 
@@ -106,14 +89,11 @@ The trust subjects are the immutable OIDC subjects (ADR 0008): `repo:vudaian24@9
 
 - The node role has the five Session Manager actions (`modules/compute/nodes.tf`). If the node started before the role had them, the SSM Agent has given up: reboot the node.
 - A session closes after 20 minutes without traffic (Session Manager default). Run the script again. If it stops at `Starting session`, press Ctrl-C and run it again.
-- Break-glass, when Session Manager or the node does not work: put your IP in `admin_cidrs` (the `TF_ADMIN_CIDRS` secret and `account.auto.tfvars`), set `public_endpoint = true` in `terraform.tfvars`, and apply. Then `aws eks update-kubeconfig --region ap-southeast-1 --name portfolio-prod`. Turn it off again afterwards.
+- Break-glass, when Session Manager or the node does not work: put your IP in `admin_cidrs` (`account.auto.tfvars`), set `public_endpoint = true` in `terraform.tfvars`, and apply. Then `aws eks update-kubeconfig --region ap-southeast-1 --name portfolio-prod`. Turn it off again afterwards.
 - EKS add-ons follow the default version EKS lists for the cluster version (`modules/compute/addons.tf`). When AWS changes that default, any plan shows an in-place add-on update.
 - A principal that may start sessions on the node can also open a shell on it. The admin already has cluster admin rights, so this adds no real access.
 
 ## Notes
 
-- Public repository: the plan artifact holds variable values and resource attributes, so it is uploaded only encrypted with `TF_PLAN_PASSPHRASE` and kept one day. The plan job also masks every admin CIDR in the log, because GitHub masks a secret only as a whole string.
-- The Terraform apply role cannot write IAM (roles, policies, the OIDC provider) or EKS access entries, and it can pass only the four EKS roles (cluster, node, Load Balancer Controller, External Secrets). A role that can write policies for roles it may pass is admin-equivalent. A plan that changes `aws_iam_*` or `aws_eks_access_*` resources stops in the plan job; the owner applies it from a laptop, then CI plans no IAM change. An explicit Deny on the plan and apply roles stays as a second guard.
-- The apply role reads EKS update status (`eks:DescribeUpdate`, `eks:ListUpdates`), so it can wait for cluster updates such as an `admin_cidrs` change.
-- `admin_cidrs` is used only while `public_endpoint` is true. Then it must be the same list in the `TF_ADMIN_CIDRS` secret and in `account.auto.tfvars` on every machine that plans locally; a local plan with an older list removes the other entries from the EKS allow-list.
-- Destroy: no CI job. Follow `docs/runbooks/decommission.md`.
+- `admin_cidrs` is used only while `public_endpoint` is true. Then it must be the same list in `account.auto.tfvars` on every machine that applies; a plan with an older list removes the other entries from the EKS allow-list.
+- Destroy: from a laptop, like every apply. Follow `docs/runbooks/decommission.md`.

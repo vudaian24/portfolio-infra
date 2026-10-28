@@ -1,5 +1,5 @@
 variable "access_allowed_emails" {
-  description = "Emails that may log in to Argo CD and Grafana through Cloudflare Access (owner and viewers). Personal data: set in account.auto.tfvars and the TF_ACCESS_ALLOWED_EMAILS secret, never committed. Used only when admin_access_enabled is true."
+  description = "Emails that may log in to Argo CD and Grafana through Cloudflare Access (owner and viewers). Personal data: set in account.auto.tfvars, never committed. Used only when admin_access_enabled is true."
   type        = list(string)
   sensitive   = true
   default     = []
@@ -115,23 +115,6 @@ variable "github_oidc_subject_prefix" {
   }
 }
 
-variable "github_terraform_subject_prefix" {
-  description = "OIDC subject prefix of portfolio-infra (ADR 0008). Read it with: gh api repos/vudaian24/portfolio-infra/actions/oidc/customization/sub --jq .sub_claim_prefix"
-  type        = string
-  default     = "repo:vudaian24@90129616/portfolio-infra@1427185252"
-
-  validation {
-    condition     = can(regex("^repo:[A-Za-z0-9_.-]+@[0-9]+/[A-Za-z0-9_.-]+@[0-9]+$", var.github_terraform_subject_prefix))
-    error_message = "github_terraform_subject_prefix must look like repo:OWNER@OWNER_ID/REPO@REPO_ID."
-  }
-}
-
-variable "github_terraform_environment" {
-  description = "GitHub environment of portfolio-infra whose apply job may assume the Terraform apply role."
-  type        = string
-  default     = "production"
-}
-
 variable "grafana_hostname" {
   description = "Hostname of the Grafana UI behind Cloudflare Access."
   type        = string
@@ -184,16 +167,6 @@ variable "region" {
   description = "AWS region to deploy the infrastructure to."
   type        = string
   default     = "ap-southeast-1"
-}
-
-variable "tfstate_bucket_name" {
-  description = "Name of the state bucket from bootstrap (terraform -chdir=bootstrap output -raw state_bucket_name). Set in account.auto.tfvars (never committed)."
-  type        = string
-
-  validation {
-    condition     = can(regex("^portfolio-tfstate-[0-9]{12}$", var.tfstate_bucket_name))
-    error_message = "tfstate_bucket_name must look like portfolio-tfstate-<12-digit account ID>."
-  }
 }
 
 variable "test_hostname" {

@@ -1,5 +1,5 @@
 variable "alert_email" {
-  description = "Address that receives the SNS alarm mail. Personal data: set from account.auto.tfvars or a CI secret, never committed."
+  description = "Address that receives the SNS alarm mail. Personal data: set from account.auto.tfvars, never committed."
   type        = string
   sensitive   = true
 

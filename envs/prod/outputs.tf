@@ -68,16 +68,6 @@ output "night_shutdown_function_name" {
   value       = try(module.night_scheduler[0].function_name, null)
 }
 
-output "tf_apply_role_arn" {
-  description = "ARN of the apply role for portfolio-infra (GitHub secret AWS_TF_APPLY_ROLE_ARN, environment production)."
-  value       = aws_iam_role.tf_apply.arn
-}
-
-output "tf_plan_role_arn" {
-  description = "ARN of the plan role for portfolio-infra (GitHub secret AWS_TF_PLAN_ROLE_ARN)."
-  value       = aws_iam_role.tf_plan.arn
-}
-
 output "vpc_id" {
   description = "ID of the VPC, used by the AWS Load Balancer Controller."
   value       = module.network.vpc_id

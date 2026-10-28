@@ -1,9 +1,8 @@
 # Copy to account.auto.tfvars (git-ignored). Placeholders only: never commit real values.
 # Every value below is account-specific or personal, so none has a default.
 
-aws_account_id      = "<AWS_ACCOUNT_ID>"
-budget_email        = "<BUDGET_ALERT_EMAIL>"
-tfstate_bucket_name = "portfolio-tfstate-<AWS_ACCOUNT_ID>"
+aws_account_id = "<AWS_ACCOUNT_ID>"
+budget_email   = "<BUDGET_ALERT_EMAIL>"
 
 # Admin IPv4 CIDRs for the public EKS API, used only when public_endpoint = true (break-glass),
 # for example ["203.0.113.10/32"]. Keep [] otherwise; admins use scripts/eks-tunnel.sh.
@@ -13,5 +12,5 @@ admin_cidrs = []
 admin_principal_arn = "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ADMIN_ROLE>"
 
 # Emails allowed through Cloudflare Access to Argo CD and Grafana (owner and viewers), used only when
-# admin_access_enabled = true. Must match the TF_ACCESS_ALLOWED_EMAILS secret.
+# admin_access_enabled = true.
 access_allowed_emails = []

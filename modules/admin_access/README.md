@@ -17,11 +17,11 @@ Argo CD and Grafana through Cloudflare Access and a Cloudflare Tunnel (provider 
 
 - The Zero Trust organization exists, created by hand. `team_name` is its team name (`<team>.cloudflareaccess.com`).
 - No One-time PIN login method exists in the organization yet. If one was added by hand, import it into `cloudflare_zero_trust_access_identity_provider.otp` instead of creating a second one.
-- The Cloudflare API token of the apply job has, besides the zone permissions: Account, Cloudflare Tunnel: Edit; Access: Apps and Policies: Edit; Access: Organizations, Identity Providers, and Groups: Edit. The plan token needs the same three as Read.
+- The Cloudflare API token used for the apply (`CLOUDFLARE_API_TOKEN` on the laptop) has, besides the zone permissions: Account, Cloudflare Tunnel: Edit; Access: Apps and Policies: Edit; Access: Organizations, Identity Providers, and Groups: Edit.
 
 ## After the apply
 
 1. Read the tunnel token in the Zero Trust dashboard (Networks, Tunnels, the tunnel, install connector) and store it with the AWS CLI as `/portfolio/prod/cloudflare-tunnel-token` (workspace `docs/runbooks/secrets.md`). Never paste it into a chat, a ticket or a file.
 2. Deploy `cloudflared` from `portfolio-gitops`. Until it runs, the hostnames show the Access login and then Cloudflare error 1033.
 
-`allowed_emails` is personal data. It comes from the `TF_ACCESS_ALLOWED_EMAILS` secret in CI and from `account.auto.tfvars` on a laptop, and the variable is sensitive, so plans do not print it.
+`allowed_emails` is personal data. It comes from `account.auto.tfvars` on the laptop, and the variable is sensitive, so plans do not print it.

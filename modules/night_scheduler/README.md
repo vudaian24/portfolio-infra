@@ -33,7 +33,7 @@ The loop leaves the node group alone unless its status is `ACTIVE`, so it never 
 
 ## Applying it the first time
 
-This module creates IAM roles and policies, and the CI plan job stops on any plan that changes `aws_iam_*` (README, *First apply*). **The apply that turns `night_shutdown_enabled` on therefore runs from a laptop as the admin**, not through CI. Later applies that do not touch IAM go through CI as usual.
+Like every apply in this repository, it runs from the owner's laptop (README, *Plan and apply*). The module creates IAM roles and policies, so the plan lists them; read them before applying.
 
 ## Operating it
 
@@ -56,5 +56,5 @@ See runbooks/cluster-operations.md (workspace `docs/runbooks/cluster-operations.
 
 ## Notes
 
-- `archive_file` builds the zip under `modules/night_scheduler/build/` (git-ignored) while Terraform plans. `terraform apply <planfile>` does not re-run data sources, so the CI apply job needs that file from the plan job; `terraform-ci.yml` carries it with the plan artifact.
+- `archive_file` builds the zip under `modules/night_scheduler/build/` (git-ignored) while Terraform plans. `terraform apply <planfile>` does not re-run data sources, so apply the plan on the machine that made it, before `build/` is cleaned.
 - A deploy pushed inside the window reaches ECR and `portfolio-gitops`, but Argo CD is down, so the smoke test fails and CI reverts the tag. Turn the flag off first.

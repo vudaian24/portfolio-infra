@@ -25,7 +25,7 @@ variable "flag_parameter_name" {
 }
 
 variable "log_retention_days" {
-  description = "Retention of the Lambda log group. The stack is destroyed on 2026-12-09, so a week is enough to debug a night."
+  description = "Retention of the Lambda log group. The stack is destroyed on 2026-12-12, so a week is enough to debug a night."
   type        = number
   default     = 7
 }
@@ -40,6 +40,17 @@ variable "node_group_name" {
   type        = string
 }
 
+variable "off_days" {
+  description = "Local days on which the node group stays at 0 from 00:00 to 24:00, as Mon, Tue, Wed, Thu, Fri, Sat, Sun. Joined with the night window around them: [\"Sun\"] with 22:00 and 08:00 keeps the node off from Saturday 22:00 to Monday 08:00."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for d in var.off_days : contains(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], d)])
+    error_message = "off_days may only contain Mon, Tue, Wed, Thu, Fri, Sat and Sun."
+  }
+}
+
 variable "reconcile_interval_minutes" {
   description = "Minutes between runs. Must divide 60 and must divide the minute of shutdown_time and startup_time, or those times are never hit."
   type        = number
@@ -52,9 +63,9 @@ variable "reconcile_interval_minutes" {
 }
 
 variable "shutdown_time" {
-  description = "Local time the node group goes to 0, HH:MM (ADR 0011: 23:00)."
+  description = "Local time the node group goes to 0, HH:MM (ADR 0011: 22:00)."
   type        = string
-  default     = "23:00"
+  default     = "22:00"
 
   validation {
     condition     = can(regex("^([01][0-9]|2[0-3]):[0-5][0-9]$", var.shutdown_time))
@@ -69,9 +80,9 @@ variable "node_asg_name" {
 }
 
 variable "startup_time" {
-  description = "Local time the node group goes back to 1, HH:MM. Earlier than the hour the site must answer, as margin for a slow node join; the measured recovery is 82 seconds (ADR 0011: 06:45 for 07:00)."
+  description = "Local time the node group goes back to 1, HH:MM. Earlier than the hour the site must answer, as margin for a slow node join; the measured recovery is 82 seconds (ADR 0011: 08:00)."
   type        = string
-  default     = "06:45"
+  default     = "08:00"
 
   validation {
     condition     = can(regex("^([01][0-9]|2[0-3]):[0-5][0-9]$", var.startup_time))
@@ -80,7 +91,7 @@ variable "startup_time" {
 }
 
 variable "timezone" {
-  description = "IANA time zone the two times are read in."
+  description = "IANA time zone the two times and off_days are read in."
   type        = string
   default     = "Asia/Ho_Chi_Minh"
 }

@@ -1,8 +1,8 @@
 # night_scheduler
 
-Scales the EKS managed node group to 0 overnight and back to 1 in the morning. Design and the measurements behind it: ADR 0011 (workspace `docs/adr/0011-night-shutdown-of-the-node.md`); the alarms: ADR 0018 (`docs/adr/0018-alerts-and-budgets.md`).
+Scales the EKS managed node group to 0 overnight and back to 1 in the morning, and keeps it at 0 all day on the days in `off_days`. Design and the measurements behind it: ADR 0011 (workspace `docs/adr/0011-night-shutdown-of-the-node.md`); the alarms: ADR 0018 (`docs/adr/0018-alerts-and-budgets.md`).
 
-Saves the node, its public IPv4 address and its root volume, about **0.39 USD a day** for the 23:00 to 06:45 window. The EKS control plane and the ALB are billed for existing and keep running, so roughly 91 USD a month is untouched. **The site returns 503 for the whole window.**
+Saves the node, its public IPv4 address and its root volume, about **0.60 USD a day** on average for the production schedule: 22:00 to 08:00 every night and all of Sunday, 84 hours a week. The EKS control plane and the ALB are billed for existing and keep running, so roughly 91 USD a month is untouched. **The site returns 503 for the whole window.**
 
 ## What it creates
 
@@ -15,11 +15,11 @@ Saves the node, its public IPv4 address and its root volume, about **0.39 USD a 
 | `aws_scheduler_schedule.reconcile` | `cron(0/15 * * * ? *)` in `timezone`, flexible window `OFF`, invoking the Lambda through its own role. |
 | `aws_sns_topic.alerts` + email subscription | The subscription must be confirmed once from the inbox, or no mail arrives. |
 | `aws_cloudwatch_metric_alarm.lambda_errors` | Two 15-minute periods with an error. The loop silently dying is what leaves the site down. |
-| `aws_cloudwatch_metric_alarm.node_down` | `AWS/AutoScaling` `GroupInServiceInstances < 1` on the node group's ASG, two 5-minute periods, created when `node_asg_name` is set. Catches the loop succeeding and the node still not coming back. The Lambda disables its actions inside the window and enables them at the 06:45 tick, because an empty node group is correct at night. It has no `ok_actions`: the loop re-enables actions while the alarm is still in ALARM, so a recovery action would mail every morning once the node joins. ALB `HealthyHostCount` would be closer to the user's experience, but it is published only per target group, and the target group belongs to the Load Balancer Controller: the 443 listener's default action is a fixed response and the routing lives in a listener rule, so Terraform cannot name it. |
+| `aws_cloudwatch_metric_alarm.node_down` | `AWS/AutoScaling` `GroupInServiceInstances < 1` on the node group's ASG, two 5-minute periods, created when `node_asg_name` is set. Catches the loop succeeding and the node still not coming back. The Lambda disables its actions inside the window and on off days, and enables them at the `startup_time` tick, because an empty node group is correct then. It has no `ok_actions`: the loop re-enables actions while the alarm is still in ALARM, so a recovery action would mail every morning once the node joins. ALB `HealthyHostCount` would be closer to the user's experience, but it is published only per target group, and the target group belongs to the Load Balancer Controller: the 443 listener's default action is a fixed response and the routing lives in a listener rule, so Terraform cannot name it. |
 
 ## Why a reconcile loop
 
-Every run reads the wanted size from the clock and the real size from the EKS API, and calls the API only when they differ. A failed run is repaired by the next one, at most 15 minutes later, so a single failed scale-up cannot leave the site down all morning. Two edge-triggered schedules, one to scale down and one to scale up, have no such recovery; that is why they were rejected in ADR 0011.
+Every run reads the wanted size from the clock and the calendar, and the real size from the EKS API, and calls the API only when they differ. A failed run is repaired by the next one, at most 15 minutes later, so a single failed scale-up cannot leave the site down all morning. Two edge-triggered schedules, one to scale down and one to scale up, have no such recovery; that is why they were rejected in ADR 0011.
 
 For the same reason the schedule has no dead-letter queue: a lost invocation needs no replay.
 
@@ -28,7 +28,8 @@ The loop leaves the node group alone unless its status is `ACTIVE`, so it never 
 ## Requirements on the caller
 
 - The node group must allow `min_size = 0`, and Terraform must ignore `desired_size`, or the next apply fights the Lambda. The `compute` module takes `node_min_size` for this.
-- `startup_time` and `shutdown_time` must land on a multiple of `reconcile_interval_minutes`, or the loop never runs at that exact minute. The defaults, 06:45 and 23:00 with a 15-minute interval, do.
+- `startup_time` and `shutdown_time` must land on a multiple of `reconcile_interval_minutes`, or the loop never runs at that exact minute. The defaults, 08:00 and 22:00 with a 15-minute interval, do.
+- An off day covers the local calendar day from 00:00 to 24:00 and joins the night window on each side: with `off_days = ["Sun"]` the node is off from Saturday `shutdown_time` to Monday `startup_time`. Day names are `Mon` to `Sun`, read in `timezone`.
 - `startup_time` is deliberately earlier than the hour the site must answer. Measured on 2026-10-26, a replacement node is launched, joined, running the pod and `healthy` on the ALB 82 seconds after the loop decides to scale up (ADR 0011, Consequences). The 15 minutes the defaults leave are margin for a slow join or a failed image pull, not the expected cost.
 
 ## Applying it the first time

@@ -10,6 +10,8 @@ Environment:
   CLUSTER_NAME, NODE_GROUP_NAME  the node group to drive
   TIMEZONE                       IANA name, e.g. Asia/Ho_Chi_Minh
   SHUTDOWN_TIME, STARTUP_TIME    local HH:MM; the window may wrap past midnight
+  OFF_DAYS                       optional comma-separated local days, e.g. "Sun",
+                                 on which the node group stays at 0 all day
   FLAG_PARAMETER                 SSM parameter; anything but "true" disables the loop
   SITE_ALARM_NAME                optional alarm whose actions follow the window
 """
@@ -29,6 +31,7 @@ NODE_GROUP_NAME = os.environ["NODE_GROUP_NAME"]
 TIMEZONE = zoneinfo.ZoneInfo(os.environ["TIMEZONE"])
 SHUTDOWN_TIME = os.environ["SHUTDOWN_TIME"]
 STARTUP_TIME = os.environ["STARTUP_TIME"]
+OFF_DAYS = {d.strip() for d in os.environ.get("OFF_DAYS", "").split(",") if d.strip()}
 FLAG_PARAMETER = os.environ["FLAG_PARAMETER"]
 SITE_ALARM_NAME = os.environ.get("SITE_ALARM_NAME", "")
 
@@ -37,6 +40,9 @@ SITE_ALARM_NAME = os.environ.get("SITE_ALARM_NAME", "")
 MAX_SIZE = 1
 MIN_SIZE = 0
 
+# Indexed by datetime.weekday(). Not strftime("%a"), which follows the locale.
+DAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
 
 def _minutes(hhmm):
     hour, minute = hhmm.split(":")
@@ -44,7 +50,9 @@ def _minutes(hhmm):
 
 
 def wanted_size(now):
-    """0 inside the night window, 1 outside it."""
+    """0 on an off day or inside the night window, 1 otherwise."""
+    if DAY_NAMES[now.weekday()] in OFF_DAYS:
+        return 0
     current = now.hour * 60 + now.minute
     shutdown = _minutes(SHUTDOWN_TIME)
     startup = _minutes(STARTUP_TIME)

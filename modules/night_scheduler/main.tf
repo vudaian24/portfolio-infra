@@ -102,7 +102,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 
 resource "aws_lambda_function" "night_scheduler" {
   function_name = local.function_name
-  description   = "Holds ${var.node_group_name} at 0 nodes between ${var.shutdown_time} and ${var.startup_time} ${var.timezone} (ADR 0011)."
+  description   = "Holds ${var.node_group_name} at 0 nodes between ${var.shutdown_time} and ${var.startup_time} ${var.timezone}${length(var.off_days) > 0 ? ", and all day ${join(", ", var.off_days)}" : ""} (ADR 0011)."
   role          = aws_iam_role.lambda.arn
   handler       = "handler.handler"
   runtime       = "python3.13"
@@ -126,6 +126,7 @@ resource "aws_lambda_function" "night_scheduler" {
       TIMEZONE        = var.timezone
       SHUTDOWN_TIME   = var.shutdown_time
       STARTUP_TIME    = var.startup_time
+      OFF_DAYS        = join(",", var.off_days)
       FLAG_PARAMETER  = aws_ssm_parameter.enabled.name
       SITE_ALARM_NAME = local.site_alarm_name
     }
@@ -247,7 +248,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 #
 # Two 5-minute periods, so the ~82 s morning scale-up does not trip it. The loop
 # disables these actions inside the window, where an empty node group is correct,
-# and enables them again at the 06:45 tick.
+# and on off days, and enables them again at the startup_time tick.
 resource "aws_cloudwatch_metric_alarm" "node_down" {
   count = var.node_asg_name == null ? 0 : 1
 
@@ -266,7 +267,7 @@ resource "aws_cloudwatch_metric_alarm" "node_down" {
     AutoScalingGroupName = var.node_asg_name
   }
 
-  # No ok_actions. The loop re-enables alarm actions at the 06:45 tick while the
+  # No ok_actions. The loop re-enables alarm actions at the startup tick while the
   # node group is still at 0 and this alarm is still in ALARM, so a recovery
   # action would mail every morning once the node joins. A daily mail is what
   # teaches people to filter the alert away. The site answering again is the

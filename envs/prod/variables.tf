@@ -128,15 +128,21 @@ variable "night_shutdown_enabled" {
 }
 
 variable "night_shutdown_end" {
-  description = "Local time the node group goes back to 1, HH:MM in Asia/Ho_Chi_Minh. Earlier than the hour the site must answer: a node needs 5 to 7 minutes."
+  description = "Local time the node group goes back to 1, HH:MM in Asia/Ho_Chi_Minh. The site answers again a few minutes later, once the node has joined."
   type        = string
-  default     = "06:45"
+  default     = "08:00"
+}
+
+variable "night_shutdown_off_days" {
+  description = "Days the node group stays at 0 all day in Asia/Ho_Chi_Minh, as Mon to Sun. With [\"Sun\"] the site is down from Saturday night_shutdown_start to Monday night_shutdown_end."
+  type        = list(string)
+  default     = []
 }
 
 variable "night_shutdown_start" {
   description = "Local time the node group goes to 0, HH:MM in Asia/Ho_Chi_Minh. The site returns 503 from then until night_shutdown_end."
   type        = string
-  default     = "23:00"
+  default     = "22:00"
 }
 
 variable "node_release_version" {

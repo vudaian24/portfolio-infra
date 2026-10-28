@@ -158,6 +158,7 @@ module "night_scheduler" {
 
   shutdown_time = var.night_shutdown_start
   startup_time  = var.night_shutdown_end
+  off_days      = var.night_shutdown_off_days
 }
 
 # The ALB is created by the AWS Load Balancer Controller from the Ingress, so it is looked up,

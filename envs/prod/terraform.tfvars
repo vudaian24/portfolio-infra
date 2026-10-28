@@ -18,7 +18,9 @@ admin_access_enabled = false
 
 # Scheduled night shutdown of the node group (ADR 0011). Creating it does not start it: the
 # SSM parameter /portfolio/prod/night-shutdown-enabled holds "false" until it is set by hand
-# (modules/night_scheduler/README.md). The site returns 503 for the whole window.
-night_shutdown_enabled = true
-night_shutdown_start   = "23:00"
-night_shutdown_end     = "06:45"
+# (modules/night_scheduler/README.md). The site returns 503 for the whole window, which runs
+# from Saturday 22:00 to Monday 08:00 because of the off day.
+night_shutdown_enabled  = true
+night_shutdown_start    = "22:00"
+night_shutdown_end      = "08:00"
+night_shutdown_off_days = ["Sun"]

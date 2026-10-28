@@ -14,7 +14,7 @@ module "secrets" {
     [
       "telegram-bot-token", "telegram-chat-id",
       # Prometheus remote_write to Grafana Cloud: the metrics instance ID and an
-      # access policy token with metrics:write only (workspace ADR 0019).
+      # access policy token with metrics:write only (workspace ADR 0016).
       "grafana-cloud-metrics-user", "grafana-cloud-metrics-token",
     ],
     var.admin_access_enabled ? ["cloudflare-tunnel-token"] : [],
@@ -192,7 +192,7 @@ module "dns" {
   production_hostname = var.production_hostname
 }
 
-# Argo CD through Cloudflare Access and a Tunnel (ADR 0009); Grafana is in Grafana Cloud (ADR 0019).
+# Argo CD through Cloudflare Access and a Tunnel (ADR 0009); Grafana is in Grafana Cloud (ADR 0016).
 # Off until the Zero Trust organization exists and the Cloudflare tokens have the account
 # permissions (modules/admin_access).
 module "admin_access" {

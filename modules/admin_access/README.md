@@ -1,6 +1,6 @@
 # admin_access
 
-Admin UIs (today Argo CD; Grafana moved to Grafana Cloud, ADR 0019) through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: ADR 0009 (workspace `docs/adr/0009-admin-uis-through-cloudflare-tunnel.md`), workspace `docs/architecture/edge-access.png`. The site keeps the ALB; this module does not touch it.
+Admin UIs (today Argo CD; Grafana moved to Grafana Cloud, ADR 0016) through Cloudflare Access and a Cloudflare Tunnel (provider `cloudflare/cloudflare` v5). Design: ADR 0009 (workspace `docs/adr/0009-admin-uis-through-cloudflare-tunnel.md`), workspace `docs/architecture/edge-access.png`. The site keeps the ALB; this module does not touch it.
 
 ## What it creates
 

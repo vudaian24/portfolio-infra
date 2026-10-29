@@ -20,7 +20,7 @@ Terraform calls only the AWS and Cloudflare APIs. It never calls the Kubernetes 
 
 ```text
 bootstrap/            S3 state bucket (run once per account). Its own state is in that bucket.
-envs/prod/            The only environment: wiring, ACM, Budgets, ECR, the portfolio-web OIDC role
+envs/prod/            The only environment: wiring, ACM, Budgets, ECR, the portfolio-web OIDC role (see its README)
 modules/network/      VPC, subnets, ALB security group
 modules/compute/      EKS cluster, node group, add-ons, Pod Identity (see its README)
 modules/dns/          Cloudflare records and rate limit (see its README)
@@ -60,22 +60,13 @@ rm -f prod.tfplan
 
 The saved plan holds variable values, except ephemeral ones such as the Cloudflare token, and resource attributes; `*.tfplan` is git-ignored, and the file is deleted after the apply. There is no scheduled drift check: a plan that shows changes the code on `main` does not explain is drift, and is investigated before anything is applied.
 
-### First apply of a new account
-
-1. `bootstrap/`: create the state bucket as in `bootstrap/README.md`.
-2. `envs/prod/`: set `alb_ready` and `cutover` to `false` in `terraform.tfvars`, because the ALB does not exist yet (`modules/dns/README.md`). Copy `account.auto.tfvars.example` to `account.auto.tfvars` and fill in the values. Then plan and apply as above.
-3. Read the outputs `web_ci_role_arn`, `ecr_registry_host`, `cluster_name` and set the `portfolio-web` deploy settings (names in `portfolio-web/AGENTS.md`).
-4. Set `node_release_version` in `terraform.tfvars` if you want to pin the node AMI (see `docs/runbooks/cluster-operations.md`).
-
-`envs/prod` reads the Cloudflare API token from `secrets.auto.tfvars` (git-ignored). Once per laptop: `cp secrets.auto.tfvars.example secrets.auto.tfvars`, set the token, `chmod 600 secrets.auto.tfvars`. The variable `cloudflare_api_token` is `sensitive` and `ephemeral`, so the token is not written to the saved plan or the state, and `terraform apply prod.tfplan` reads the file again. Without the file, `terraform plan` prompts for `var.cloudflare_api_token`: stop it and create the file instead.
-
-Note that a plan can list an `aws_iam_role_policy` as changed when nothing in it changed: a policy document that reads an attribute of a resource being updated is deferred to apply time, and Terraform reports the policy as in-place. Read the diff before applying rather than trusting the resource type.
+The git-ignored files a laptop needs first (`backend.hcl`, `account.auto.tfvars`, `secrets.auto.tfvars` with the Cloudflare token), the switches in `terraform.tfvars`, the first apply in a new account, and what to watch for in a plan are in `envs/prod/README.md`.
 
 ## GitHub settings for portfolio-infra
 
 The Terraform CI jobs need no secrets. Only `notify-workspace.yml` uses settings: the repository variable `WORKSPACE_SYNC_APP_CLIENT_ID` and the repository secret `WORKSPACE_SYNC_APP_PRIVATE_KEY`.
 
-`envs/prod` reads `aws_account_id`, `budget_email`, `admin_cidrs`, `admin_principal_arn` and `access_allowed_emails` from `account.auto.tfvars` on the laptop (template: `account.auto.tfvars.example`), and `cloudflare_api_token` from `secrets.auto.tfvars` (template: `secrets.auto.tfvars.example`).
+Account values and the Cloudflare token are not GitHub settings: they live in git-ignored files on the laptop (`envs/prod/README.md`, Laptop setup).
 
 ## Cloudflare checks before `alb_ready`
 
@@ -89,10 +80,8 @@ The Terraform CI jobs need no secrets. Only `notify-workspace.yml` uses settings
 - The node role has the five Session Manager actions (`modules/compute/nodes.tf`). If the node started before the role had them, the SSM Agent has given up: reboot the node.
 - A session closes after 20 minutes without traffic (Session Manager default). Run the script again. If it stops at `Starting session`, press Ctrl-C and run it again.
 - Break-glass, when Session Manager or the node does not work: put your IP in `admin_cidrs` (`account.auto.tfvars`), set `public_endpoint = true` in `terraform.tfvars`, and apply. Then `aws eks update-kubeconfig --region ap-southeast-1 --name portfolio-prod`. Turn it off again afterwards.
-- EKS add-ons follow the default version EKS lists for the cluster version (`modules/compute/addons.tf`). When AWS changes that default, any plan shows an in-place add-on update.
 - A principal that may start sessions on the node can also open a shell on it. The admin already has cluster admin rights, so this adds no real access.
 
 ## Notes
 
-- `admin_cidrs` is used only while `public_endpoint` is true. Then it must be the same list in `account.auto.tfvars` on every machine that applies; a plan with an older list removes the other entries from the EKS allow-list.
 - Destroy: from a laptop, like every apply. Follow `docs/runbooks/decommission.md`.

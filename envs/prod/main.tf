@@ -193,7 +193,7 @@ module "dns" {
 }
 
 # Argo CD through Cloudflare Access and a Tunnel (ADR 0009); Grafana is in Grafana Cloud (ADR 0016).
-# Off until the Zero Trust organization exists and the Cloudflare tokens have the account
+# Off until the Zero Trust organization exists and the Cloudflare token has the account
 # permissions (modules/admin_access).
 module "admin_access" {
   source = "../../modules/admin_access"

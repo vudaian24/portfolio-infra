@@ -54,7 +54,8 @@ Static checks only, on push to `main` and on pull requests: `fmt`, `validate` (m
 - Never run `terraform apply`, `terraform destroy`, `terraform import`, `terraform state rm` or `terraform state mv` without the user's explicit instruction in this session.
 - Never commit `backend.hcl`, `account.auto.tfvars`, `secrets.auto.tfvars`, `.env`, `*.tfstate*`, `*.tfplan`, `.terraform/`, or crash logs. `.gitignore` covers them; do not work around it.
 - Never print or paste state contents, plan output containing secrets, or the account ID into commits, PRs or chat.
-- Never open or print `secrets.auto.tfvars`, `.env` or `~/.aws/*`. Use only short-term `aws login` credentials. Never create access keys.
+- Never open or print `secrets.auto.tfvars`, `.env` or `~/.aws/*`.
+- Never call the Cost Explorer API (`aws ce ...`): each request is billed (0.01 USD). Read the month-to-date spend with `aws budgets describe-budget` on the budget `portfolio-prod-monthly`; the owner checks spend per day or per service in the Cost Explorer console. Use only short-term `aws login` credentials. Never create access keys.
 - Do not remove `prevent_destroy` from the bootstrap state bucket, and do not turn off `allowed_account_ids`.
 - Do not put secrets in `.tf` or tracked `.tfvars` files. The one secret Terraform reads, the Cloudflare token, sits in the git-ignored `envs/prod/secrets.auto.tfvars` behind an ephemeral variable. Store other secret values in SSM Parameter Store and reference them by name.
 - This repo is also checked out as a submodule of the `portfolio` workspace repo. Push changes here first; the workspace records the new commit afterwards.

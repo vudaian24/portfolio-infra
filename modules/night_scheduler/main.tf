@@ -36,6 +36,9 @@ data "archive_file" "handler" {
   type        = "zip"
   source_dir  = "${path.module}/lambda"
   output_path = "${path.module}/build/${local.function_name}.zip"
+
+  # Bytecode that a local python run leaves behind would change the zip hash.
+  excludes = ["__pycache__"]
 }
 
 data "aws_iam_policy_document" "lambda_assume_role" {

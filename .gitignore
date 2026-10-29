@@ -24,5 +24,8 @@ secrets.auto.tfvars
 # Lambda zip built by archive_file at plan time (modules/night_scheduler)
 modules/*/build/
 
+# Python bytecode
+__pycache__/
+
 # macOS
 .DS_Store

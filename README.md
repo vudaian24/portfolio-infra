@@ -51,7 +51,6 @@ Apply only what is on `main`, so that `main` always describes what runs:
 git switch main && git pull --ff-only
 git status --short                         # must print nothing
 aws login --region ap-southeast-1          # docs/runbooks/aws-login.md in the workspace
-read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN
 cd envs/prod
 terraform init -backend-config=backend.hcl
 terraform plan -out=prod.tfplan            # read it before applying
@@ -59,7 +58,7 @@ terraform apply prod.tfplan
 rm -f prod.tfplan
 ```
 
-The saved plan holds variable values and resource attributes; `*.tfplan` is git-ignored, and the file is deleted after the apply. There is no scheduled drift check: a plan that shows changes the code on `main` does not explain is drift, and is investigated before anything is applied.
+The saved plan holds variable values, except ephemeral ones such as the Cloudflare token, and resource attributes; `*.tfplan` is git-ignored, and the file is deleted after the apply. There is no scheduled drift check: a plan that shows changes the code on `main` does not explain is drift, and is investigated before anything is applied.
 
 ### First apply of a new account
 
@@ -68,7 +67,7 @@ The saved plan holds variable values and resource attributes; `*.tfplan` is git-
 3. Read the outputs `web_ci_role_arn`, `ecr_registry_host`, `cluster_name` and set the `portfolio-web` deploy settings (names in `portfolio-web/AGENTS.md`).
 4. Set `node_release_version` in `terraform.tfvars` if you want to pin the node AMI (see `docs/runbooks/cluster-operations.md`).
 
-`terraform plan` here needs `CLOUDFLARE_API_TOKEN` in the environment. Without it the run still writes a plan file, but one that only fails at apply time, so export the token first.
+`envs/prod` reads the Cloudflare API token from `secrets.auto.tfvars` (git-ignored). Once per laptop: `cp secrets.auto.tfvars.example secrets.auto.tfvars`, set the token, `chmod 600 secrets.auto.tfvars`. The variable `cloudflare_api_token` is `sensitive` and `ephemeral`, so the token is not written to the saved plan or the state, and `terraform apply prod.tfplan` reads the file again. Without the file, `terraform plan` prompts for `var.cloudflare_api_token`: stop it and create the file instead.
 
 Note that a plan can list an `aws_iam_role_policy` as changed when nothing in it changed: a policy document that reads an attribute of a resource being updated is deferred to apply time, and Terraform reports the policy as in-place. Read the diff before applying rather than trusting the resource type.
 
@@ -76,7 +75,7 @@ Note that a plan can list an `aws_iam_role_policy` as changed when nothing in it
 
 The Terraform CI jobs need no secrets. Only `notify-workspace.yml` uses settings: the repository variable `WORKSPACE_SYNC_APP_CLIENT_ID` and the repository secret `WORKSPACE_SYNC_APP_PRIVATE_KEY`.
 
-`envs/prod` reads `aws_account_id`, `budget_email`, `admin_cidrs`, `admin_principal_arn` and `access_allowed_emails` from `account.auto.tfvars` on the laptop (template: `account.auto.tfvars.example`).
+`envs/prod` reads `aws_account_id`, `budget_email`, `admin_cidrs`, `admin_principal_arn` and `access_allowed_emails` from `account.auto.tfvars` on the laptop (template: `account.auto.tfvars.example`), and `cloudflare_api_token` from `secrets.auto.tfvars` (template: `secrets.auto.tfvars.example`).
 
 ## Cloudflare checks before `alb_ready`
 

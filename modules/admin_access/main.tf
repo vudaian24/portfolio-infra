@@ -1,5 +1,5 @@
 # Admin UIs through Cloudflare Access and a Cloudflare Tunnel (ADR 0009). The site keeps the ALB.
-# Token: CLOUDFLARE_API_TOKEN in the environment, with account-level Tunnel and Access permissions.
+# Token: var.cloudflare_api_token of the root provider (envs/prod), with account-level Tunnel and Access permissions.
 
 # One-time PIN by email: viewers need no account at an identity provider.
 resource "cloudflare_zero_trust_access_identity_provider" "otp" {

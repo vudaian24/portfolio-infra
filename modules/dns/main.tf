@@ -1,4 +1,4 @@
-# Cloudflare token: CLOUDFLARE_API_TOKEN in the environment, never in a file. Scoped to the zone.
+# Cloudflare token: var.cloudflare_api_token of the root provider (envs/prod), never in a tracked file. Scoped to the zone.
 data "cloudflare_zone" "main" {
   filter = {
     name = var.zone_name

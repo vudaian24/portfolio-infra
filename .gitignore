@@ -12,9 +12,14 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Account-specific values (see *.example files)
+# Account-specific values and the Cloudflare token (see *.example files)
 backend.hcl
 account.auto.tfvars
+secrets.auto.tfvars
+
+# Terraform here reads no .env file; ignored so a stray one is never committed
+.env
+.env.*
 
 # Lambda zip built by archive_file at plan time (modules/night_scheduler)
 modules/*/build/

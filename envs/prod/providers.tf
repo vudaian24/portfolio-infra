@@ -9,5 +9,8 @@ provider "aws" {
   }
 }
 
-# Reads CLOUDFLARE_API_TOKEN from the environment (zone-scoped token, see docs/runbooks/secrets.md).
-provider "cloudflare" {}
+# Token from the git-ignored secrets.auto.tfvars (template: secrets.auto.tfvars.example). The variable is
+# ephemeral: the token stays out of the saved plan and the state, and apply <planfile> reads the file again.
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}

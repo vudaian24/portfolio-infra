@@ -17,7 +17,7 @@ Admin UIs (today Argo CD; Grafana moved to Grafana Cloud, ADR 0016) through Clou
 
 - The Zero Trust organization exists, created by hand. `team_name` is its team name (`<team>.cloudflareaccess.com`).
 - No One-time PIN login method exists in the organization yet. If one was added by hand, import it into `cloudflare_zero_trust_access_identity_provider.otp` instead of creating a second one.
-- The Cloudflare API token used for the apply (`CLOUDFLARE_API_TOKEN` on the laptop) has, besides the zone permissions: Account, Cloudflare Tunnel: Edit; Access: Apps and Policies: Edit; Access: Organizations, Identity Providers, and Groups: Edit.
+- The Cloudflare API token used for the apply (`cloudflare_api_token` in `envs/prod/secrets.auto.tfvars` on the laptop) has, besides the zone permissions: Account, Cloudflare Tunnel: Edit; Access: Apps and Policies: Edit; Access: Organizations, Identity Providers, and Groups: Edit.
 
 ## After the apply
 

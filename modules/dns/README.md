@@ -6,7 +6,7 @@ Cloudflare records for the zone `anvd.io.vn` (provider `cloudflare/cloudflare` v
 
 | Resource | When | Notes |
 | --- | --- | --- |
-| `data.cloudflare_zone.main` | always | Looked up with `filter = { name = zone_name }`. Token from `CLOUDFLARE_API_TOKEN` in the environment. |
+| `data.cloudflare_zone.main` | always | Looked up with `filter = { name = zone_name }`. Token from the root provider, `var.cloudflare_api_token` in `envs/prod`. |
 | `cloudflare_dns_record.acm_validation[*]` | always | ACM DNS validation CNAMEs, **not proxied**. Keyed by domain name, so each name gets one record. |
 | `cloudflare_dns_record.production[0]` (`portfolio`) | `cutover = true` only | CNAME to the ALB, proxied. Created at cutover, see below. |
 | `cloudflare_ruleset.contact_rate_limit` | always | One zone rule in phase `http_ratelimit`: `POST /web-api/contact` on the production host, counted per `ip.src` over 10 s, block for 10 s after 5 requests. This is the Free plan limit (one rule, 10 s period). |

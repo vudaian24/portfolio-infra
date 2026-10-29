@@ -69,6 +69,13 @@ variable "budget_email" {
   }
 }
 
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token of the cloudflare provider: the zone permissions of modules/dns, plus the account permissions of modules/admin_access when admin_access_enabled is true. Secret: set in secrets.auto.tfvars (git-ignored), never committed. Ephemeral, so it is not written to plan files or state."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+}
+
 variable "cluster_deletion_protection" {
   description = "EKS deletion protection. Set to false in a commit before the decommission destroy (docs/runbooks/decommission.md)."
   type        = bool

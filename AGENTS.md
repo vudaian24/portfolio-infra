@@ -7,7 +7,7 @@ Terraform for the portfolio on AWS, region `ap-southeast-1`. Public repo: github
 - Terraform 1.16.6 (`.terraform-version`). `required_version = ">= 1.11"` (write-only arguments on `aws_ssm_parameter` need 1.11; `use_lockfile` needs 1.10).
 - AWS provider `hashicorp/aws ~> 6.0`. Lock files `.terraform.lock.hcl` are committed; commit lock changes with provider changes.
 - Archive provider `hashicorp/archive ~> 2.4` (only `envs/prod`): zips the `night_scheduler` Lambda at plan time. `terraform apply <planfile>` does not re-run data sources, so apply a plan file on the machine that made it.
-- Cloudflare provider `cloudflare/cloudflare ~> 5.0` (only `envs/prod`, v5 names: `cloudflare_dns_record`, `cloudflare_ruleset`, `data "cloudflare_zone"` with `filter`, `cloudflare_zero_trust_tunnel_cloudflared`, `cloudflare_zero_trust_tunnel_cloudflared_config`, `cloudflare_zero_trust_access_application`, `cloudflare_zero_trust_access_policy`, `cloudflare_zero_trust_access_identity_provider`). Token from `CLOUDFLARE_API_TOKEN`, never in a file.
+- Cloudflare provider `cloudflare/cloudflare ~> 5.0` (only `envs/prod`, v5 names: `cloudflare_dns_record`, `cloudflare_ruleset`, `data "cloudflare_zone"` with `filter`, `cloudflare_zero_trust_tunnel_cloudflared`, `cloudflare_zero_trust_tunnel_cloudflared_config`, `cloudflare_zero_trust_access_application`, `cloudflare_zero_trust_access_policy`, `cloudflare_zero_trust_access_identity_provider`). Token from `var.cloudflare_api_token` (`sensitive`, `ephemeral`), which the owner sets in the git-ignored `envs/prod/secrets.auto.tfvars`; never in a tracked file.
 - TFLint with `.tflint.hcl`: `terraform` plugin (recommended preset) and `aws` plugin 0.49.0. CI uses TFLint v0.64.0.
 
 ## Current state
@@ -27,7 +27,7 @@ Run from the repo root unless noted.
   Note: `init` writes `.terraform/` (git-ignored).
 - Lint: `tflint --init && tflint --recursive --config "$PWD/.tflint.hcl"`
 - Plan (needs AWS login; run only when the user asks):
-  `cd envs/prod && cp backend.hcl.example backend.hcl` (fill in bucket from `terraform -chdir=../../bootstrap output -raw state_bucket_name`) and `cp account.auto.tfvars.example account.auto.tfvars` (fill in the account ID); then `aws login`, then `terraform init -backend-config=backend.hcl` and `terraform plan`.
+  `cd envs/prod && cp backend.hcl.example backend.hcl` (fill in bucket from `terraform -chdir=../../bootstrap output -raw state_bucket_name`) and `cp account.auto.tfvars.example account.auto.tfvars` (fill in the account ID); the owner keeps the Cloudflare token in `secrets.auto.tfvars`; then `aws login`, then `terraform init -backend-config=backend.hcl` and `terraform plan`.
 - Lock files: `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64` after `init -backend=false`, in each root that changes providers.
 - Security scan: `trivy config --severity HIGH,CRITICAL .`
 - Apply: never run it. The owner applies from a laptop after reading the plan.
@@ -52,11 +52,11 @@ Static checks only, on push to `main` and on pull requests: `fmt`, `validate` (m
 ## Never do
 
 - Never run `terraform apply`, `terraform destroy`, `terraform import`, `terraform state rm` or `terraform state mv` without the user's explicit instruction in this session.
-- Never commit `backend.hcl`, `account.auto.tfvars`, `*.tfstate*`, `*.tfplan`, `.terraform/`, or crash logs. `.gitignore` covers them; do not work around it.
+- Never commit `backend.hcl`, `account.auto.tfvars`, `secrets.auto.tfvars`, `.env`, `*.tfstate*`, `*.tfplan`, `.terraform/`, or crash logs. `.gitignore` covers them; do not work around it.
 - Never print or paste state contents, plan output containing secrets, or the account ID into commits, PRs or chat.
-- Never open `~/.aws/*`. Use only short-term `aws login` credentials. Never create access keys.
+- Never open or print `secrets.auto.tfvars`, `.env` or `~/.aws/*`. Use only short-term `aws login` credentials. Never create access keys.
 - Do not remove `prevent_destroy` from the bootstrap state bucket, and do not turn off `allowed_account_ids`.
-- Do not put secrets in `.tf` or `.tfvars` files. Store secret values in SSM Parameter Store and reference them by name.
+- Do not put secrets in `.tf` or tracked `.tfvars` files. The one secret Terraform reads, the Cloudflare token, sits in the git-ignored `envs/prod/secrets.auto.tfvars` behind an ephemeral variable. Store other secret values in SSM Parameter Store and reference them by name.
 - This repo is also checked out as a submodule of the `portfolio` workspace repo. Push changes here first; the workspace records the new commit afterwards.
 - Commit on `main` and push it directly. Do not open pull requests.
 

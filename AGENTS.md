@@ -59,7 +59,7 @@ Static checks only, on push to `main` and on pull requests: `fmt`, `validate` (m
 - Do not remove `prevent_destroy` from the bootstrap state bucket, and do not turn off `allowed_account_ids`.
 - Do not put secrets in `.tf` or tracked `.tfvars` files. The one secret Terraform reads, the Cloudflare token, sits in the git-ignored `envs/prod/secrets.auto.tfvars` behind an ephemeral variable. Store other secret values in SSM Parameter Store and reference them by name.
 - This repo is also checked out as a submodule of the `portfolio` workspace repo. Push changes here first; the workspace records the new commit afterwards.
-- Commit on `main` and push it directly. Do not open pull requests.
+- Change `main` through a pull request: the ruleset `protect main` rejects direct pushes and force-pushes (ADR 0019 in the workspace repo). Work on a branch, open the pull request with a conventional-commit title, read the `terraform-ci` result, then `gh pr merge --squash --delete-branch`.
 
 ## Workspace docs
 

@@ -4,6 +4,30 @@ Terraform for [portfolio-web](https://github.com/vudaian24/portfolio-web), a per
 
 **Status:** `bootstrap/` and `envs/prod` are applied. `alb_ready` and `cutover` are `true`, and `public_endpoint` is `false`: admins use the Session Manager tunnel. CI runs static checks only; the owner plans and applies from a laptop (Plan and apply). The design lives in the private workspace repo (`docs/architecture/aws-eks.md`), not here.
 
+## Architecture
+
+```mermaid
+flowchart TB
+  visitor(("Visitor")) --> cf["Cloudflare<br/>DNS, rate limit"]
+  owner(("Owner"))
+  ci["portfolio-web CI"] -- "GitHub OIDC" --> ecr[("ECR<br/>portfolio-prod-web")]
+  subgraph vpc["VPC: two public subnets, no NAT gateway"]
+    alb["ALB"] --> node["EKS managed node<br/>t4g.medium, arm64"]
+    node --> api["EKS API<br/>private endpoint"]
+  end
+  cf -- "443, Cloudflare IPs only" --> alb
+  owner -- "kubectl via<br/>Session Manager" --> node
+  ecr -- "image pull" --> node
+  ssm[("SSM SecureString")] -- "External Secrets,<br/>Pod Identity" --> node
+  sched["EventBridge + Lambda<br/>night shutdown"] -- "node group 1 to 0" --> node
+```
+
+Everything in the diagram is managed here except the ALB itself, which the AWS Load
+Balancer Controller creates from an Ingress in
+[portfolio-gitops](https://github.com/vudaian24/portfolio-gitops). Terraform owns its
+security group. The S3 state bucket (`bootstrap/`), ACM, Budgets and the optional
+Cloudflare Tunnel for admin UIs are left out of the diagram.
+
 ## What it manages
 
 - **Network:** VPC, two public subnets, internet gateway, ALB security group (443 from Cloudflare only). No NAT gateway.

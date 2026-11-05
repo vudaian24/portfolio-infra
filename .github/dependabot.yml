@@ -1,0 +1,44 @@
+# Dependabot version updates. Every update arrives as a pull request, so the
+# terraform-ci checks run on it; nothing is planned or applied from CI.
+version: 2
+updates:
+  # Actions stay pinned to a commit SHA with a "# vX.Y.Z" comment;
+  # Dependabot keeps that format when it bumps them.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Ho_Chi_Minh
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # Providers in both roots and in every module, grouped into one pull request
+  # so constraints and .terraform.lock.hcl move together. After merging, run
+  # `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64`
+  # if the lock file lost the darwin_arm64 hashes.
+  - package-ecosystem: terraform
+    directories:
+      - /bootstrap
+      - /envs/prod
+      - /modules/*
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Ho_Chi_Minh
+    cooldown:
+      default-days: 7
+    groups:
+      terraform-providers:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore
+      include: scope

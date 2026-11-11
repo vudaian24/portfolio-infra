@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "lambda" {
 
     content {
       sid     = "FollowTheWindowWithTheSiteAlarm"
-      actions = ["cloudwatch:EnableAlarmActions", "cloudwatch:DisableAlarmActions"]
+      actions = ["cloudwatch:EnableAlarmActions", "cloudwatch:DisableAlarmActions", "cloudwatch:SetAlarmState"]
       resources = [join("", [
         "arn:aws:cloudwatch:", data.aws_region.current.region, ":",
         data.aws_caller_identity.current.account_id, ":alarm:", statement.value,
@@ -132,6 +132,8 @@ resource "aws_lambda_function" "night_scheduler" {
       OFF_DAYS        = join(",", var.off_days)
       FLAG_PARAMETER  = aws_ssm_parameter.enabled.name
       SITE_ALARM_NAME = local.site_alarm_name
+
+      RECONCILE_INTERVAL_MINUTES = tostring(var.reconcile_interval_minutes)
     }
   }
 
@@ -241,6 +243,32 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   ok_actions    = [aws_sns_topic.alerts.arn]
 }
 
+# The errors alarm sees only runs that fail. A loop that is not invoked at all
+# (the schedule disabled or deleted, its role broken, the invocation throttled)
+# produces no Errors and no Invocations datapoint, and notBreaching reads that as
+# fine. The loop runs around the clock, at night and with the flag off too, so
+# an interval with no invocation is always a fault. Two intervals, so the
+# few-minute delay of Lambda metrics does not trip it.
+resource "aws_cloudwatch_metric_alarm" "lambda_not_invoked" {
+  alarm_name          = "${local.function_name}-not-invoked"
+  alarm_description   = "The night shutdown reconcile loop has not run for ${2 * var.reconcile_interval_minutes} minutes. The node group may stay at 0, and the node-down alarm is not re-armed (ADR 0011)."
+  namespace           = "AWS/Lambda"
+  metric_name         = "Invocations"
+  statistic           = "Sum"
+  period              = var.reconcile_interval_minutes * 60
+  evaluation_periods  = 2
+  threshold           = 1
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.night_scheduler.function_name
+  }
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+}
+
 # The loop can succeed and still leave the site down, so alarm on the effect as
 # well as on the Lambda. ALB HealthyHostCount would be the closer signal, but it
 # is only published per target group, and the target group belongs to the AWS
@@ -251,7 +279,10 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 #
 # Two 5-minute periods, so the ~82 s morning scale-up does not trip it. The loop
 # disables these actions inside the window, where an empty node group is correct,
-# and on off days, and enables them again at the startup_time tick.
+# and on off days, and enables them again at the startup_time tick. The alarm is
+# still in ALARM from the night then, so the loop also sets it to OK one interval
+# later: if the node is still missing, the next evaluation is a new transition to
+# ALARM and sends the mail.
 resource "aws_cloudwatch_metric_alarm" "node_down" {
   count = var.node_asg_name == null ? 0 : 1
 
@@ -272,7 +303,8 @@ resource "aws_cloudwatch_metric_alarm" "node_down" {
 
   # No ok_actions. The loop re-enables alarm actions at the startup tick while the
   # node group is still at 0 and this alarm is still in ALARM, so a recovery
-  # action would mail every morning once the node joins. A daily mail is what
+  # action would mail every morning once the node joins, and the morning re-arm
+  # sets OK by hand. A daily mail is what
   # teaches people to filter the alert away. The site answering again is the
   # recovery signal; this alarm only has to report that it did not.
   alarm_actions = [aws_sns_topic.alerts.arn]

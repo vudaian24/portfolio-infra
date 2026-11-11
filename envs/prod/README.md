@@ -47,7 +47,7 @@ Terraform loads `terraform.tfvars` and every `*.auto.tfvars` by itself, so plan 
 | `public_endpoint` | `false` | Break-glass: opens the public EKS API to `admin_cidrs`. Admins use `scripts/eks-tunnel.sh`. |
 | `node_release_version` | pinned | EKS AMI release of the node group. A bump is a rolling update: the node is replaced by a new one. |
 | `admin_access_enabled` | `false` | Argo CD through Cloudflare Access and a Tunnel (`modules/admin_access`). Needs `access_team_name` and the extra token permissions first. |
-| `night_shutdown_enabled` | `true` | Creates the night scheduler. The SSM flag `/portfolio/prod/night-shutdown-enabled` starts and stops it, not this switch (`modules/night_scheduler/README.md`). |
+| `night_shutdown_enabled` | `true` | Creates the night scheduler. The SSM flag `/portfolio/prod/night-shutdown-enabled` starts and stops it, not this switch (`modules/night_scheduler/README.md`). To set it to `false`, check first that the node group's desired size is 1: `false` raises the group's minimum size to 1, and EKS rejects a minimum above the current desired size, so the apply fails while the node is down for the night. |
 
 `cluster_deletion_protection` (default `true`) is set to `false` only in the commit before the decommission destroy.
 
